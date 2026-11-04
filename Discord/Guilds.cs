@@ -72,7 +72,7 @@ public sealed record VoiceChannelInfo(string Id, string Name, string? GuildId, I
         if (userId is null)
             return null;
         if (avatar is not null)
-            return $"https://cdn.discordapp.com/avatars/{userId}/{avatar}.png?size=64";
+            return $"https://cdn.discordapp.com/avatars/{userId}/{avatar}.png?size=128";
         var index = ulong.TryParse(userId, out var id) ? (id >> 22) % 6 : 0;
         return $"https://cdn.discordapp.com/embed/avatars/{index}.png";
     }
