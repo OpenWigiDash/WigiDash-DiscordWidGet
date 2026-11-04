@@ -187,13 +187,13 @@ public static class ButtonRenderer
             var y = size.Height - textBlock;
             using (var labelFont = new Font(theme.SecondaryFontFamily, labelHeight * 0.8f, GraphicsUnit.Pixel))
             using (var brush = new SolidBrush(foreground))
-                g.DrawString(visual.Label, labelFont, brush, new RectangleF(4, y, size.Width - 8, labelHeight + 2), Centered);
+                EmojiText.Draw(g, visual.Label, labelFont, brush, new RectangleF(4, y, size.Width - 8, labelHeight + 2), Centered);
 
             if (hasDetail)
             {
                 using var detailFont = new Font(theme.PrimaryFontFamily, labelHeight * 0.65f, GraphicsUnit.Pixel);
                 using var brush = new SolidBrush(Blend(foreground, background, 0.25));
-                g.DrawString(visual.Detail, detailFont, brush,
+                EmojiText.Draw(g, visual.Detail!, detailFont, brush,
                     new RectangleF(4, y + labelHeight, size.Width - 8, labelHeight), Centered);
             }
 
@@ -304,7 +304,7 @@ public static class ButtonRenderer
             }
             DrawAvatar(g, rect, faces[i]);
             if (nameFont is not null)
-                g.DrawString(faces[i].Name, nameFont, nameBrush, new RectangleF(cx - step / 2 + 1, rect.Bottom + 3, step - 2, label), Centered);
+                EmojiText.Draw(g, faces[i].Name, nameFont, nameBrush, new RectangleF(cx - step / 2 + 1, rect.Bottom + 3, step - 2, label), Centered);
         }
     }
 
@@ -325,9 +325,9 @@ public static class ButtonRenderer
                 break;
             if (y > area.Y)
                 g.DrawLine(divider, area.X, y - 3, area.Right, y - 3);
-            g.DrawString(line.Title, titleFont, titleBrush, new RectangleF(area.X, y, area.Width, 19), left);
+            EmojiText.Draw(g, line.Title, titleFont, titleBrush, new RectangleF(area.X, y, area.Width, 19), left);
             if (!string.IsNullOrEmpty(line.Body))
-                g.DrawString(line.Body, bodyFont, bodyBrush, new RectangleF(area.X, y + 19, area.Width, 17), left);
+                EmojiText.Draw(g, line.Body, bodyFont, bodyBrush, new RectangleF(area.X, y + 19, area.Width, 17), left);
             y += lineHeight + 6;
         }
     }
