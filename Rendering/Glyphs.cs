@@ -16,6 +16,14 @@ public static class Glyphs
     public const string Share = "";
     public const string Message = "";
     public const string People = "";
+
+    /// <summary>Uma pessoa só (o "Contact").</summary>
+    public const string Person = "";
+
+    /// <summary>Casa: o servidor do Discord, como no ícone de Server Stats da Elgato.</summary>
+    public const string Server = "";
+
+    public const string Info = "";
     public const string Ringer = "";
     public const string Speakers = "";
     public const string Switch = "";

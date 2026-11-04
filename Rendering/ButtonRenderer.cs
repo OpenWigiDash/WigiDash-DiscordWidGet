@@ -166,6 +166,8 @@ public static class ButtonRenderer
                     lock (image)
                         g.DrawImage(image, rect);
                 }
+                if (visual.GlyphBadge is { } imageBadge)
+                    DrawGlyphBadge(g, iconArea, side, imageBadge, background, foreground);
             }
             else
             {

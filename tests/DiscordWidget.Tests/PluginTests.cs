@@ -115,6 +115,9 @@ public sealed class PluginTests
         Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Mini.CellSpan), theme, new ButtonVisual(WidgetIcons.Find("headset")!.Glyph, "HeadSet")
                 { Accent = ButtonRenderer.Success, DotCount = 2, DotIndex = 0, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
             Path.Combine(output, "estado-toggle-mini.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Server, "312 online")
+                { ImageUrl = "test://logo", GlyphBadge = Glyphs.Server, Detail = "1.204 membros · Jogos" }),
+            Path.Combine(output, "estado-server-logo.png"));
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.MicrophoneOff, "Mute") { Accent = ButtonRenderer.Danger, Detail = "Mutado" }),
             Path.Combine(output, "estado-mutado.png"));
     }

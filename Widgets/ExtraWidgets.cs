@@ -201,7 +201,7 @@ public sealed class ServerStatsWidget : DiscordWidgetBase
         "Discord: Server Stats",
         "Mostra quantos membros de um servidor estão online e o total, atualizado a cada minuto.");
 
-    protected override ButtonVisual Preview => new(Glyphs.People, "Server Stats");
+    protected override ButtonVisual Preview => new(Glyphs.Server, "Server Stats") { GlyphAccent = Glyphs.Info };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new ServerStatsInstance(context);
 }
@@ -219,7 +219,8 @@ public sealed class ServerStatsInstance : DiscordOptionsInstance<ServerStatsOpti
         _ = Task.Run(PollAsync);
     }
 
-    protected override string Glyph => Glyphs.People;
+    protected override string Glyph => Glyphs.Server;
+    protected override string GlyphAccent => Glyphs.Info;
     protected override string Label => "Server Stats";
 
     public override Type? OptionsComponent => typeof(ServerStatsOptionsPanel);
@@ -227,14 +228,18 @@ public sealed class ServerStatsInstance : DiscordOptionsInstance<ServerStatsOpti
     protected override ButtonVisual GetVisual()
     {
         if (Options.GuildId is null)
-            return new ButtonVisual(Glyph, Label) { Detail = "Escolha o servidor", Dimmed = true };
-        // Logo do servidor no lugar do ícone, para saber de qual servidor são os números.
+            return new ButtonVisual(Glyph, Label) { Detail = "Escolha o servidor", Dimmed = true, GlyphAccent = GlyphAccent };
+        // Logo do servidor no lugar do ícone, para saber de qual servidor são os números, com o símbolo de servidor
+        // no canto (enquanto o logo não chega, o próprio símbolo com o "i").
         var icon = GuildIconUrl(Options.GuildId);
         if (_counts is not { } counts)
-            return new ButtonVisual(Glyph, Options.GuildName ?? Label) { ImageUrl = icon, Detail = "Carregando...", Dimmed = true };
+            return new ButtonVisual(Glyph, Options.GuildName ?? Label)
+                { ImageUrl = icon, GlyphBadge = Glyph, GlyphAccent = GlyphAccent, Detail = "Carregando...", Dimmed = true };
         return new ButtonVisual(Glyph, $"{counts.Online:N0} online")
         {
             ImageUrl = icon,
+            GlyphBadge = Glyph,
+            GlyphAccent = GlyphAccent,
             Detail = $"{counts.Members:N0} membros · {counts.Name}",
         };
     }
