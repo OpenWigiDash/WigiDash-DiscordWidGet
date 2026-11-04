@@ -18,7 +18,7 @@ A tentativa antiga em net472, que parou no erro 4001 do WebSocket, ficou guardad
 | Voice Channel | Entra e sai de um canal de voz; mostra quantos estão na call |
 | Text Channel | Abre um canal de texto |
 | Set Audio Device | Troca o microfone e/ou a saída |
-| Audio Device Toggle | Alterna o microfone e/ou a saída entre duas combinações (A e B), com ícone escolhido na biblioteca do SDK |
+| Audio Device Toggle | Alterna o microfone e/ou a saída entre duas combinações (A e B), cada uma com o seu ícone da biblioteca do SDK |
 | Volume Control | Volume de entrada ou saída (esquerda abaixa e direita aumenta) |
 | User Volume Control | Volume ou mute local de alguém da call |
 | Soundboard | Toca um som do soundboard |
