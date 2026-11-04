@@ -66,7 +66,8 @@ public sealed class SetAudioDeviceWidget : DiscordWidgetBase
     public override WidgetManifest Manifest { get; } = CreateManifest(
         new Guid("127b7877-9b6f-4500-a376-ba4a38b6a9ee"),
         "Discord: Set Audio Device",
-        "Toque troca o dispositivo de entrada e/ou saída do Discord para o escolhido. Fica azul quando já está nele.");
+        "Toque troca o dispositivo de entrada e/ou saída do Discord para o escolhido. Fica azul quando já está nele.",
+        iconButton: true);
 
     protected override ButtonVisual Preview => new(Glyphs.Speakers, "Audio Device");
 

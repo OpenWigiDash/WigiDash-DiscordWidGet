@@ -33,7 +33,8 @@ public sealed class PluginTests
         [
             "Discord: Mute", "Discord: Deafen", "Discord: Push to Talk", "Discord: Push to Mute",
             "Discord: Mute inteligente", "Discord: Voice Input Mode", "Discord: Soundboard",
-            "Discord: Video Toggle", "Discord: Stream Toggle",
+            "Discord: Video Toggle", "Discord: Stream Toggle", "Discord: Voice Channel", "Discord: Text Channel",
+            "Discord: Set Audio Device", "Discord: Audio Device Toggle",
         ];
         foreach (var widget in LoadWidgets())
             Assert.Equal(iconButtons.Contains(widget.Manifest.Name), widget.Manifest.SupportedSizes.Contains(WidgetSize.Mini));
@@ -83,6 +84,18 @@ public sealed class PluginTests
             Path.Combine(output, "estado-mini.png"));
         Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Mini.CellSpan), theme, new ButtonVisual(Glyphs.Volume, "60%") { Level = 0.6, Hints = AdjustHints.Horizontal }),
             Path.Combine(output, "estado-mini-volume.png"));
+
+        // Canal de voz com 8 pessoas: grade de avatares em cada tamanho (nome embaixo só no Large).
+        string[] names = ["Ana", "Bruno", "Caio", "Duda", "Enzo", "Fê", "Gabi", "Hugo"];
+        var faces = names.Select((n, i) => new AvatarFace(null, n, i == 1)).ToList();
+        foreach (var size in new[] { WidgetSize.Small, WidgetSize.Wide, WidgetSize.Large })
+            Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(size.CellSpan), theme,
+                    new ButtonVisual(Glyphs.Volume, "Voice 15") { Faces = faces, Badge = faces.Count, Detail = "Toque para entrar" }),
+                Path.Combine(output, $"estado-canal-{size.Columns}x{size.Rows}.png"));
+        Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Large.CellSpan), theme,
+                new ButtonVisual(Glyphs.Ringer, "3  Ana") { Accent = ButtonRenderer.Success, Detail = "bora jogar?",
+                    Lines = [new("Ana", "bora jogar?"), new("Bruno", "chegando em 5 min"), new("Caio", "alguém viu o patch novo?")] }),
+            Path.Combine(output, "estado-notificacoes-large.png"));
     }
 
     internal static void Save(WidgetFrame frame, string path)

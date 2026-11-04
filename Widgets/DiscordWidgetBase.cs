@@ -42,10 +42,11 @@ public abstract class DiscordWidgetBase : IWidget
 
     /// <summary>
     /// Ficha padrão: Small (o 1x1 de antes) e Wide (o 2x1). <paramref name="iconButton"/> acrescenta o Mini (meia
-    /// célula, 98x70), que só serve para botão de ícone (mute, microfone); widget com texto, lista ou canal começa
-    /// no Small (decisão do Victor para o SDK 3.0).
+    /// célula, 98x70), para botão de um toque só (mute, entrar num canal); <paramref name="large"/> acrescenta o
+    /// Large (4x4), para widget que mostra uma lista (pessoas no canal, notificações).
     /// </summary>
-    protected static WidgetManifest CreateManifest(Guid id, string name, string description, bool iconButton = false) => new()
+    protected static WidgetManifest CreateManifest(Guid id, string name, string description, bool iconButton = false,
+        bool large = false) => new()
     {
         Id = id,
         Name = name,
@@ -53,7 +54,8 @@ public abstract class DiscordWidgetBase : IWidget
         Author = "Victor Perez",
         Website = Website,
         Description = description,
-        SupportedSizes = iconButton ? [WidgetSize.Mini, WidgetSize.Small, WidgetSize.Wide] : [WidgetSize.Small, WidgetSize.Wide],
+        SupportedSizes = [.. iconButton ? [WidgetSize.Mini] : Array.Empty<WidgetSize>(), WidgetSize.Small, WidgetSize.Wide,
+            .. large ? [WidgetSize.Large] : Array.Empty<WidgetSize>()],
     };
 }
 

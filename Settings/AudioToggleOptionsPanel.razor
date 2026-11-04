@@ -1,0 +1,91 @@
+@* Opções do Audio Device Toggle: o que trocar, as combinações A e B e o ícone. Dispositivos vêm do Discord. *@
+@inject IWidgetIconPicker IconPicker
+<MudStack Spacing="2">
+    @if (Voice is null)
+    {
+        <MudText Typo="Typo.caption" Color="Color.Warning">Conecte o Discord para ver os dispositivos.</MudText>
+    }
+    <MudSelect T="AudioSide" Value="Instance.Options.Side" ValueChanged="v => Save(Instance.Options with { Side = v })"
+               Label="Trocar" Variant="Variant.Outlined" Style="max-width: 320px">
+        <MudSelectItem Value="AudioSide.Input">Só a entrada (microfone)</MudSelectItem>
+        <MudSelectItem Value="AudioSide.Output">Só a saída</MudSelectItem>
+        <MudSelectItem Value="AudioSide.Both">Entrada e saída</MudSelectItem>
+    </MudSelect>
+
+    @foreach (var (name, combo, isA) in new[] { ("A", Instance.Options.A, true), ("B", Instance.Options.B, false) })
+    {
+        <MudText Typo="Typo.subtitle2">Combinação @name</MudText>
+        @if (Instance.Options.Side != AudioSide.Output)
+        {
+            <MudSelect T="string" Value="combo.InputId" ValueChanged="id => SelectInput(isA, id)" Label="Entrada"
+                       Variant="Variant.Outlined" Disabled="@(Voice is null)" Style="min-width: 320px">
+                @foreach (var device in Voice?.Input.Devices ?? [])
+                {
+                    <MudSelectItem Value="@device.Id">@device.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+        @if (Instance.Options.Side != AudioSide.Input)
+        {
+            <MudSelect T="string" Value="combo.OutputId" ValueChanged="id => SelectOutput(isA, id)" Label="Saída"
+                       Variant="Variant.Outlined" Disabled="@(Voice is null)" Style="min-width: 320px">
+                @foreach (var device in Voice?.Output.Devices ?? [])
+                {
+                    <MudSelectItem Value="@device.Id">@device.Name</MudSelectItem>
+                }
+            </MudSelect>
+        }
+    }
+
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudButton Variant="Variant.Outlined" OnClick="PickIcon">
+            <WidgetIconView IconKey="@(Instance.Options.IconKey ?? AutomaticKey)" Size="24" />
+            <span style="margin-left: 8px">Trocar ícone</span>
+        </MudButton>
+        <MudText Typo="Typo.caption">@(Instance.Options.IconKey is null ? "Automático" : WidgetIcons.Find(Instance.Options.IconKey)?.Name)</MudText>
+    </MudStack>
+</MudStack>
+
+@code {
+    [Parameter, EditorRequired]
+    public AudioToggleInstance Instance { get; set; } = default!;
+
+    private VoiceSettings? Voice => Instance.Session.Voice;
+
+    /// <summary>Ícone da biblioteca igual ao automático, para a prévia da opção "Automático".</summary>
+    private string AutomaticKey => Instance.Options.Side switch
+    {
+        AudioSide.Input => "microphone",
+        AudioSide.Output => "speaker",
+        _ => "headset",
+    };
+
+    private async Task PickIcon()
+    {
+        var choice = await IconPicker.PickAsync(new WidgetIconPickerOptions
+        {
+            Title = "Ícone do botão",
+            Current = Instance.Options.IconKey,
+            Automatic = WidgetIcons.Find(AutomaticKey),
+        });
+        if (choice is not null)
+            await Save(Instance.Options with { IconKey = choice.Key });
+    }
+
+    private Task SelectInput(bool isA, string id) => Update(isA, c => c with
+    {
+        InputId = id,
+        InputName = Voice?.Input.Devices.FirstOrDefault(d => d.Id == id)?.Name,
+    });
+
+    private Task SelectOutput(bool isA, string id) => Update(isA, c => c with
+    {
+        OutputId = id,
+        OutputName = Voice?.Output.Devices.FirstOrDefault(d => d.Id == id)?.Name,
+    });
+
+    private Task Update(bool isA, Func<AudioCombo, AudioCombo> change) =>
+        Save(isA ? Instance.Options with { A = change(Instance.Options.A) } : Instance.Options with { B = change(Instance.Options.B) });
+
+    private Task Save(AudioToggleOptions options) => Instance.SaveOptionsAsync(options);
+}

@@ -17,6 +17,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
     private string? _channelId;
     private string? _textChannelId;
     private string _inputDevice = "default";
+    private string _outputDevice = "default";
     private double _outputVolume = 100;
     private double _friendVolume = 100;
     private bool _friendMuted;
@@ -25,6 +26,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
     {
         var json = Json.VoiceSettings();
         json["input"]!["device_id"] = _inputDevice;
+        json["output"]!["device_id"] = _outputDevice;
         json["output"]!["volume"] = _outputVolume;
         return json;
     }
@@ -53,6 +55,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
             {
                 case "SET_VOICE_SETTINGS":
                     if (args["input"]?["device_id"] is { } device) _inputDevice = (string)device!;
+                    if (args["output"]?["device_id"] is { } output) _outputDevice = (string)output!;
                     if (args["output"]?["volume"] is { } volume) _outputVolume = (double)volume;
                     return Voice();
                 case "GET_VOICE_SETTINGS":
@@ -214,6 +217,47 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         Assert.Equal("mic2", _inputDevice);
         Assert.Equal("Em uso", widget.CurrentVisual().Detail);
+    }
+
+    [Fact]
+    public async Task Toggle_de_audio_alterna_entre_A_e_B_e_fica_azul_quando_trocam_por_fora()
+    {
+        await using var widget = await CreateAsync<AudioToggleInstance>(new AudioToggleWidget());
+        Assert.True(widget.CurrentVisual().Dimmed);
+        await widget.SaveOptionsAsync(new AudioToggleOptions
+        {
+            A = new AudioCombo { InputId = "mic1", InputName = "Headset", OutputId = "out1", OutputName = "Headset" },
+            B = new AudioCombo { InputId = "mic2", InputName = "Shure", OutputId = "out2", OutputName = "Caixas" },
+        });
+
+        // Fora das duas: azul, nenhuma bolinha cheia; o toque vai para A.
+        var visual = widget.CurrentVisual();
+        Assert.Null(visual.Accent);
+        Assert.Equal(-1, visual.DotIndex);
+        Assert.Equal(2, visual.CornerGlyphs!.Count);
+
+        await Tap(widget);
+        Assert.Equal(("mic1", "out1"), (_inputDevice, _outputDevice));
+        Assert.Equal(0, widget.CurrentVisual().DotIndex);
+        Assert.Equal(ButtonRenderer.Success, widget.CurrentVisual().Accent);
+
+        await Tap(widget);
+        Assert.Equal(("mic2", "out2"), (_inputDevice, _outputDevice));
+        Assert.Equal(1, widget.CurrentVisual().DotIndex);
+        Assert.Equal("Caixas", widget.CurrentVisual().Label);
+
+        // Só o microfone trocado no Discord: não bate com nenhuma combinação.
+        await _session.SetVoiceSettingsAsync(new JsonObject { ["input"] = new JsonObject { ["device_id"] = "mic1" } }, default);
+        Assert.Equal(-1, widget.CurrentVisual().DotIndex);
+
+        // Só a entrada: a saída não importa.
+        await widget.SaveOptionsAsync(widget.Options with { Side = AudioSide.Input });
+        Assert.Equal(0, widget.CurrentVisual().DotIndex);
+        Assert.Single(widget.CurrentVisual().CornerGlyphs!);
+
+        // Ícone escolhido na biblioteca do SDK.
+        await widget.SaveOptionsAsync(widget.Options with { IconKey = "speaker" });
+        Assert.Equal(WidgetIcons.Find("speaker")!.Glyph, widget.CurrentVisual().Glyph);
     }
 
     [Fact]

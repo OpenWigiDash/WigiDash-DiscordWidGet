@@ -118,7 +118,8 @@ public sealed class NotificationsWidget : DiscordWidgetBase
     public override WidgetManifest Manifest { get; } = CreateManifest(
         new Guid("0ff2ec59-c7dc-451b-b7cd-354d1480f1c9"),
         "Discord: Notifications",
-        "Mostra quantas notificações chegaram e a última. O toque abre, limpa ou passa pelas notificações.");
+        "Mostra quantas notificações chegaram e a última. O toque abre, limpa ou passa pelas notificações.",
+        large: true);
 
     protected override ButtonVisual Preview => new(Glyphs.Ringer, "Notificações");
 
@@ -143,6 +144,13 @@ public sealed class NotificationsInstance(IWidgetContext context) : DiscordOptio
         var list = Session.Notifications;
         if (Shown(list) is not { } shown)
             return new ButtonVisual(Glyph, "Nenhuma notificação");
+        // Large: a lista mostra as últimas, e o rodapé só conta.
+        if (Context.PixelSize.Height >= 220)
+            return new ButtonVisual(Glyph, list.Count == 1 ? "1 notificação" : $"{list.Count} notificações")
+            {
+                Accent = ButtonRenderer.Success,
+                Lines = list.Reverse().Take(6).Select(n => new ListLine(n.Title, n.Body)).ToList(),
+            };
         var position = _index is { } i ? $"{Math.Clamp(i, 0, list.Count - 1) + 1}/{list.Count}" : $"{list.Count}";
         return new ButtonVisual(Glyph, $"{position}  {shown.Title}")
         {

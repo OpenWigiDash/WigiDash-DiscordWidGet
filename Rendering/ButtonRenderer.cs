@@ -42,7 +42,25 @@ public sealed record ButtonVisual(string Glyph, string Label)
 
     /// <summary>Imagem no lugar do ícone (ex.: emoji do som), baixada pelo <see cref="AvatarCache"/>.</summary>
     public string? ImageUrl { get; init; }
+
+    /// <summary>Imagem pequena e redonda no canto do ícone (ex.: logo do servidor no canal de voz).</summary>
+    public string? ImageBadgeUrl { get; init; }
+
+    /// <summary>Lista (ex.: últimas notificações), desenhada no lugar do ícone quando o tile é alto (Large).</summary>
+    public IReadOnlyList<ListLine>? Lines { get; init; }
+
+    /// <summary>Bolinhas no topo, uma por opção (como o Audio Device do plugin System). <c>null</c> = sem bolinhas.</summary>
+    public int? DotCount { get; init; }
+
+    /// <summary>Bolinha cheia; -1 = nenhuma.</summary>
+    public int DotIndex { get; init; } = -1;
+
+    /// <summary>Ícones pequenos numa pílula no canto superior direito (ex.: o que o botão troca: microfone, saída).</summary>
+    public IReadOnlyList<string>? CornerGlyphs { get; init; }
 }
+
+/// <summary>Uma linha da lista: título em destaque e texto menor embaixo.</summary>
+public sealed record ListLine(string Title, string? Body);
 
 /// <summary>Onde o tile desenha o "−" e o "+" de ajuste (volume).</summary>
 public enum AdjustHints
@@ -88,14 +106,23 @@ public static class ButtonRenderer
             // Mini (meia célula): só ícone e rótulo curto, sem a segunda linha.
             var compact = size.Height < 100;
             var hasDetail = !compact && !string.IsNullOrEmpty(visual.Detail);
-            var labelHeight = compact ? Math.Max(12, size.Height / 5) : Math.Max(16, size.Height / 7);
+            var labelHeight = compact ? Math.Max(12, size.Height / 5) : Math.Clamp(size.Height / 7, 16, 24);
             // No Mini, a barra de nível precisa de espaço próprio embaixo do rótulo.
             var textBlock = labelHeight + (hasDetail ? labelHeight * 4 / 5 : 0) + (compact ? (visual.Level is null ? 4 : 9) : 8);
             var top = compact ? 3 : 6;
             var iconArea = new RectangleF(0, top, size.Width, size.Height - textBlock - top);
 
-            if (visual.Faces is { Count: > 0 } faces)
-                DrawFaces(g, iconArea, faces, background, compact ? 2 : size.Width > size.Height * 1.8 ? 5 : 3);
+            // Tile alto (Large) tem espaço para o nome embaixo de cada avatar e para a lista.
+            var tall = size.Height >= 220;
+            if (visual.Lines is { Count: > 0 } lines && tall)
+                DrawLines(g, theme, new RectangleF(12, top + 4, size.Width - 24, size.Height - textBlock - top - 8), lines, background, foreground);
+            else if (visual.Faces is { Count: > 0 } faces)
+            {
+                // O contador fica no canto de cima: a grade começa embaixo dele.
+                var reserved = visual.Badge is null ? 0 : BadgeHeight(size) + 4;
+                var facesArea = new RectangleF(6, iconArea.Y + reserved, size.Width - 12, iconArea.Height - reserved);
+                DrawFaces(g, facesArea, faces, background, foreground, tall);
+            }
             else if (AvatarCache.Get(visual.ImageUrl) is { } image)
             {
                 var side = Math.Min(iconArea.Height * 0.8f, size.Width * 0.45f);
@@ -124,6 +151,8 @@ public static class ButtonRenderer
                     DrawSlash(g, iconArea, glyphSize, background, foreground);
                 if (visual.GlyphBadge is { } badgeGlyph)
                     DrawGlyphBadge(g, iconArea, glyphSize, badgeGlyph, background, foreground);
+                else if (AvatarCache.Get(visual.ImageBadgeUrl) is { } badgeImage)
+                    DrawImageBadge(g, iconArea, glyphSize, badgeImage, background);
             }
 
             if (visual.Hints != AdjustHints.None)
@@ -131,6 +160,11 @@ public static class ButtonRenderer
 
             if (visual.Badge is { } badge)
                 DrawBadge(g, size, theme, badge, background, foreground);
+            else if (visual.CornerGlyphs is { Count: > 0 } corner)
+                DrawCornerGlyphs(g, size, corner, background, foreground);
+
+            if (visual.DotCount is { } dots)
+                DrawDots(g, size, dots, visual.DotIndex, foreground);
 
             var y = size.Height - textBlock;
             using (var labelFont = new Font(theme.SecondaryFontFamily, labelHeight * 0.8f, GraphicsUnit.Pixel))
@@ -160,49 +194,132 @@ public static class ButtonRenderer
     }
 
     /// <summary>
-    /// Avatares em círculo, sobrepostos como no plugin da Elgato. Quem está falando ganha anel verde; acima do
-    /// limite, o último círculo vira "+N".
+    /// Avatares em grade, no maior tamanho em que todo mundo cabe (cada um com pelo menos 28 px). Se não cabe,
+    /// o último lugar vira "+N". Com <paramref name="names"/>, sobra uma linha para o nome embaixo de cada um.
     /// </summary>
-    private static void DrawFaces(Graphics g, RectangleF area, IReadOnlyList<AvatarFace> faces, Color background, int max)
+    internal static FaceGrid LayoutFaces(SizeF area, int count, bool names)
     {
-        var shown = faces.Count > max ? faces.Take(max - 1).ToList() : faces.ToList();
-        var extra = faces.Count - shown.Count;
-        var slots = shown.Count + (extra > 0 ? 1 : 0);
-        var d = Math.Min(area.Height * 0.92f, area.Width * 0.5f);
-        var step = slots > 1 ? Math.Min(d * 0.7f, (area.Width - 12 - d) / (slots - 1)) : 0;
-        var total = d + step * (slots - 1);
-        var x = area.X + (area.Width - total) / 2;
-        var y = area.Y + (area.Height - d) / 2;
-        var ring = Math.Max(3f, d / 16);
-
-        for (var i = 0; i < shown.Count; i++)
+        const float minD = 28;
+        var label = names ? 18f : 0;
+        FaceGrid? best = null;
+        for (var rows = 1; rows <= 6; rows++)
         {
-            var rect = new RectangleF(x + step * i, y, d, d);
-            if (shown[i].Speaking)
+            for (var cols = 1; cols <= 10; cols++)
+            {
+                var d = Math.Min(Math.Min(area.Width / cols, area.Height / rows - label) * 0.84f, 96);
+                if (d < minD)
+                    continue;
+                var grid = new FaceGrid(rows, cols, d);
+                if (best is null || Better(grid, best, count))
+                    best = grid;
+            }
+        }
+        return best ?? new FaceGrid(1, 1, Math.Max(8, Math.Min(area.Width, area.Height - label) * 0.84f));
+    }
+
+    /// <summary>Cabe todo mundo vence; entre os que cabem, avatar maior e menos lugares sobrando; senão, mais lugares.</summary>
+    private static bool Better(FaceGrid grid, FaceGrid best, int count)
+    {
+        bool fits = grid.Slots >= count, bestFits = best.Slots >= count;
+        if (fits != bestFits)
+            return fits;
+        if (fits)
+            return grid.Diameter > best.Diameter || (grid.Diameter == best.Diameter && grid.Slots < best.Slots);
+        return grid.Slots > best.Slots || (grid.Slots == best.Slots && grid.Diameter > best.Diameter);
+    }
+
+    internal sealed record FaceGrid(int Rows, int Columns, float Diameter)
+    {
+        public int Slots => Rows * Columns;
+    }
+
+    private static void DrawFaces(Graphics g, RectangleF area, IReadOnlyList<AvatarFace> faces, Color background, Color foreground, bool names)
+    {
+        var grid = LayoutFaces(area.Size, faces.Count, names);
+        var slots = Math.Min(faces.Count, grid.Slots);
+        var extra = faces.Count - slots;
+        var counter = extra > 0 ? slots - 1 : -1;
+        var usedRows = (slots + grid.Columns - 1) / grid.Columns;
+        var label = names ? 18f : 0;
+        var d = grid.Diameter;
+        var cellW = area.Width / grid.Columns;
+        var cellH = Math.Min(area.Height / grid.Rows, d / 0.84f + label);
+        var y0 = area.Y + (area.Height - cellH * usedRows) / 2;
+        var ring = Math.Max(2.5f, d / 18);
+        using var nameFont = names ? new Font("Segoe UI", 12.5f, GraphicsUnit.Pixel) : null;
+        using var nameBrush = new SolidBrush(Blend(foreground, background, 0.15));
+
+        for (var i = 0; i < slots; i++)
+        {
+            var row = i / grid.Columns;
+            var inRow = Math.Min(grid.Columns, slots - row * grid.Columns);
+            var cx = area.X + (area.Width - cellW * inRow) / 2 + cellW * (i % grid.Columns + 0.5f);
+            var cy = y0 + cellH * row + (cellH - label) / 2;
+            var rect = new RectangleF(cx - d / 2, cy - d / 2, d, d);
+
+            if (i == counter)
+            {
+                using (var fill = new SolidBrush(Color.FromArgb(150, Blend(background, Color.Black, 0.6))))
+                    g.FillEllipse(fill, rect);
+                using var font = new Font("Segoe UI Semibold", d * 0.36f, GraphicsUnit.Pixel);
+                g.DrawString($"+{extra + 1}", font, Brushes.White, rect, Centered);
+                continue;
+            }
+
+            if (faces[i].Speaking)
             {
                 // Anel de quem fala; no fundo verde (você na call) o verde sumiria, então vai branco.
                 var speaking = background.ToArgb() == Success.ToArgb() ? Color.White : Success;
                 using var glow = new SolidBrush(speaking);
-                g.FillEllipse(glow, RectangleF.Inflate(rect, ring * 1.1f, ring * 1.1f));
+                g.FillEllipse(glow, RectangleF.Inflate(rect, ring, ring));
             }
-            else
-            {
-                using var border = new SolidBrush(background);
-                g.FillEllipse(border, RectangleF.Inflate(rect, ring, ring));
-            }
-            DrawAvatar(g, rect, shown[i]);
+            DrawAvatar(g, rect, faces[i]);
+            if (nameFont is not null)
+                g.DrawString(faces[i].Name, nameFont, nameBrush, new RectangleF(cx - cellW / 2 + 2, rect.Bottom + 3, cellW - 4, label), Centered);
         }
+    }
 
-        if (extra > 0)
+    /// <summary>Lista de títulos e textos, de cima para baixo, até onde couber.</summary>
+    private static void DrawLines(Graphics g, WidgetTheme theme, RectangleF area, IReadOnlyList<ListLine> lines, Color background, Color foreground)
+    {
+        using var titleFont = new Font(theme.SecondaryFontFamily, 15, GraphicsUnit.Pixel);
+        using var bodyFont = new Font(theme.PrimaryFontFamily, 13, GraphicsUnit.Pixel);
+        using var titleBrush = new SolidBrush(foreground);
+        using var bodyBrush = new SolidBrush(Blend(foreground, background, 0.3));
+        using var divider = new Pen(Blend(background, foreground, 0.2));
+        using var left = new StringFormat(Centered) { Alignment = StringAlignment.Near };
+        const float lineHeight = 40;
+        var y = area.Y;
+        foreach (var line in lines)
         {
-            var rect = new RectangleF(x + step * shown.Count, y, d, d);
-            using (var border = new SolidBrush(background))
-                g.FillEllipse(border, RectangleF.Inflate(rect, ring, ring));
-            using (var fill = new SolidBrush(Color.FromArgb(78, 80, 88)))
-                g.FillEllipse(fill, rect);
-            using var font = new Font("Segoe UI Semibold", d * 0.32f, GraphicsUnit.Pixel);
-            g.DrawString($"+{extra}", font, Brushes.White, rect, Centered);
+            if (y + lineHeight > area.Bottom + 1)
+                break;
+            if (y > area.Y)
+                g.DrawLine(divider, area.X, y - 3, area.Right, y - 3);
+            g.DrawString(line.Title, titleFont, titleBrush, new RectangleF(area.X, y, area.Width, 19), left);
+            if (!string.IsNullOrEmpty(line.Body))
+                g.DrawString(line.Body, bodyFont, bodyBrush, new RectangleF(area.X, y + 19, area.Width, 17), left);
+            y += lineHeight + 6;
         }
+    }
+
+    /// <summary>Imagem redonda (logo do servidor) no canto inferior direito do ícone, com borda da cor do fundo.</summary>
+    private static void DrawImageBadge(Graphics g, RectangleF area, float glyphSize, Image image, Color background)
+    {
+        var d = glyphSize * 0.5f;
+        var cx = area.X + area.Width / 2 + glyphSize * 0.5f;
+        var cy = area.Y + area.Height / 2 + glyphSize * 0.36f;
+        var circle = new RectangleF(cx - d / 2, cy - d / 2, d, d);
+        using (var fill = new SolidBrush(background))
+            g.FillEllipse(fill, RectangleF.Inflate(circle, 3, 3));
+        using var clip = new GraphicsPath();
+        clip.AddEllipse(circle);
+        var state = g.Save();
+        g.SetClip(clip);
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        lock (image)
+            g.DrawImage(image, circle);
+        g.Restore(state);
     }
 
     private static void DrawAvatar(Graphics g, RectangleF rect, AvatarFace face)
@@ -222,7 +339,7 @@ public static class ButtonRenderer
         }
         // Enquanto o avatar não chega: a inicial sobre a cor da pessoa (estável pelo nome).
         var hue = (uint)face.Name.GetHashCode() % 6;
-        Color[] palette = [DiscordBlurple, Success, Danger, Color.FromArgb(240, 178, 50), Color.FromArgb(235, 69, 158), Color.FromArgb(87, 158, 230)];
+        Color[] palette = [Color.FromArgb(155, 132, 238), Success, Danger, Color.FromArgb(240, 178, 50), Color.FromArgb(235, 69, 158), Color.FromArgb(87, 158, 230)];
         using (var fill = new SolidBrush(palette[hue]))
             g.FillEllipse(fill, rect);
         using var font = new Font("Segoe UI Semibold", rect.Height * 0.45f, GraphicsUnit.Pixel);
@@ -282,10 +399,49 @@ public static class ButtonRenderer
         g.DrawString(symbol, font, brush, rect with { Y = rect.Y - rect.Height * 0.06f }, Centered);
     }
 
+    /// <summary>Pílula com ícones pequenos no canto superior direito, no lugar do contador.</summary>
+    private static void DrawCornerGlyphs(Graphics g, PixelSize size, IReadOnlyList<string> glyphs, Color background, Color foreground)
+    {
+        var height = size.Height < 100 ? 16f : BadgeHeight(size);
+        var cell = height * 0.85f;
+        var width = cell * glyphs.Count + height * 0.3f;
+        var inset = size.Height < 100 ? 5f : 8f;
+        var rect = new RectangleF(size.Width - width - inset, inset, width, height);
+        using (var path = RoundedRect(Rectangle.Round(rect), (int)(height / 2)))
+        using (var fill = new SolidBrush(Color.FromArgb(200, Blend(background, Color.Black, 0.55))))
+            g.FillPath(fill, path);
+        using var font = new Font(IconFont, height * 0.55f, GraphicsUnit.Pixel);
+        using var brush = new SolidBrush(foreground);
+        for (var i = 0; i < glyphs.Count; i++)
+            g.DrawString(glyphs[i], font, brush, new RectangleF(rect.X + height * 0.15f + cell * i, rect.Y, cell, height), Centered);
+    }
+
+    /// <summary>Bolinhas centralizadas no topo: a cheia é a opção ativa.</summary>
+    private static void DrawDots(Graphics g, PixelSize size, int count, int index, Color foreground)
+    {
+        var d = size.Height < 100 ? 6f : 8f;
+        var gap = d * 0.9f;
+        var total = d * count + gap * (count - 1);
+        var x = (size.Width - total) / 2;
+        var y = size.Height < 100 ? 4f : 7f;
+        using var fill = new SolidBrush(foreground);
+        using var pen = new Pen(foreground, 1.5f);
+        for (var i = 0; i < count; i++)
+        {
+            var rect = new RectangleF(x + (d + gap) * i, y, d, d);
+            if (i == index)
+                g.FillEllipse(fill, rect);
+            else
+                g.DrawEllipse(pen, rect);
+        }
+    }
+
+    private static float BadgeHeight(PixelSize size) => Math.Clamp(size.Height / 6.5f, 20f, 26f);
+
     /// <summary>Pílula com o contador no canto superior direito, como o "2" de pessoas da Elgato.</summary>
     private static void DrawBadge(Graphics g, PixelSize size, WidgetTheme theme, int count, Color background, Color foreground)
     {
-        var height = Math.Max(20f, size.Height / 6.5f);
+        var height = BadgeHeight(size);
         using var font = new Font(theme.SecondaryFontFamily, height * 0.62f, GraphicsUnit.Pixel);
         using var iconFont = new Font(IconFont, height * 0.55f, GraphicsUnit.Pixel);
         var text = count.ToString();
