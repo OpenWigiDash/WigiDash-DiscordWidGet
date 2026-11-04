@@ -215,7 +215,7 @@ public static class ButtonRenderer
         {
             for (var cols = 1; cols <= 10; cols++)
             {
-                var d = Math.Min(Math.Min(area.Width / cols, area.Height / rows - label) * 0.84f, 96);
+                var d = Math.Min(Math.Min(area.Width * 0.96f / (1 + Step(names) * (cols - 1)), (area.Height / rows - label) * 0.86f), 96);
                 if (d < minD)
                     continue;
                 var grid = new FaceGrid(rows, cols, d);
@@ -225,6 +225,12 @@ public static class ButtonRenderer
         }
         return best ?? new FaceGrid(1, 1, Math.Max(8, Math.Min(area.Width, area.Height - label) * 0.84f));
     }
+
+    /// <summary>
+    /// Distância entre os centros, em diâmetros: sobrepostos um pouco (como no plugin da Elgato, mas menos); com
+    /// nome embaixo, lado a lado para o nome caber.
+    /// </summary>
+    private static float Step(bool names) => names ? 1.2f : 0.82f;
 
     /// <summary>Cabe todo mundo vence; entre os que cabem, avatar maior e menos lugares sobrando; senão, mais lugares.</summary>
     private static bool Better(FaceGrid grid, FaceGrid best, int count)
@@ -251,8 +257,8 @@ public static class ButtonRenderer
         var usedRows = (slots + grid.Columns - 1) / grid.Columns;
         var label = names ? 18f : 0;
         var d = grid.Diameter;
-        var cellW = area.Width / grid.Columns;
-        var cellH = Math.Min(area.Height / grid.Rows, d / 0.84f + label);
+        var step = d * Step(names);
+        var cellH = Math.Min(area.Height / grid.Rows, d * 1.12f + label);
         var y0 = area.Y + (area.Height - cellH * usedRows) / 2;
         var ring = Math.Max(2.5f, d / 18);
         using var nameFont = names ? new Font("Segoe UI", 12.5f, GraphicsUnit.Pixel) : null;
@@ -262,9 +268,14 @@ public static class ButtonRenderer
         {
             var row = i / grid.Columns;
             var inRow = Math.Min(grid.Columns, slots - row * grid.Columns);
-            var cx = area.X + (area.Width - cellW * inRow) / 2 + cellW * (i % grid.Columns + 0.5f);
+            var rowWidth = d + step * (inRow - 1);
+            var cx = area.X + (area.Width - rowWidth) / 2 + d / 2 + step * (i % grid.Columns);
             var cy = y0 + cellH * row + (cellH - label) / 2;
             var rect = new RectangleF(cx - d / 2, cy - d / 2, d, d);
+
+            // Borda da cor do fundo separa cada avatar do que ele cobre.
+            using (var border = new SolidBrush(background))
+                g.FillEllipse(border, RectangleF.Inflate(rect, ring, ring));
 
             if (i == counter)
             {
@@ -284,7 +295,7 @@ public static class ButtonRenderer
             }
             DrawAvatar(g, rect, faces[i]);
             if (nameFont is not null)
-                g.DrawString(faces[i].Name, nameFont, nameBrush, new RectangleF(cx - cellW / 2 + 2, rect.Bottom + 3, cellW - 4, label), Centered);
+                g.DrawString(faces[i].Name, nameFont, nameBrush, new RectangleF(cx - step / 2 + 1, rect.Bottom + 3, step - 2, label), Centered);
         }
     }
 
