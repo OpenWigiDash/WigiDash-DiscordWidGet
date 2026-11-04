@@ -13,7 +13,7 @@ namespace WigiDash.DiscordWidget.Rendering;
 /// </summary>
 public sealed record ButtonVisual(string Glyph, string Label)
 {
-    /// <summary>Cor de fundo do estado (verde ativo, vermelho mutado). <c>null</c> = cinza escuro de ocioso.</summary>
+    /// <summary>Cor de fundo do estado (verde ativo, vermelho mutado). <c>null</c> = azul do Discord.</summary>
     public Color? Accent { get; init; }
 
     /// <summary>Segunda linha, menor (ex.: nome do canal, volume).</summary>
@@ -87,8 +87,8 @@ public static class ButtonRenderer
 {
     public static readonly Color DiscordBlurple = Color.FromArgb(88, 101, 242);
 
-    /// <summary>Fundo de ocioso: o cinza escuro do Discord, para o símbolo roxo aparecer.</summary>
-    public static readonly Color Idle = Color.FromArgb(43, 45, 49);
+    /// <summary>Fundo de ocioso: o azul do Discord.</summary>
+    public static readonly Color Idle = DiscordBlurple;
 
     /// <summary>Azul de "fora das opções" (ex.: dispositivo trocado por fora do toggle).</summary>
     public static readonly Color Info = Color.FromArgb(0, 120, 212);
@@ -104,10 +104,11 @@ public static class ButtonRenderer
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            // Fundo do estado: cinza escuro de ocioso, verde quando a ação está ativa e vermelho quando algo
-            // está cortado (mutado, ensurdecido), vindos em Accent. Por cima, o símbolo do Discord em roxo.
+            // Fundo do estado: azul do Discord de ocioso, verde quando a ação está ativa e vermelho quando algo
+            // está cortado (mutado, ensurdecido), vindos em Accent. Por cima, o símbolo do Discord num tom mais
+            // escuro da mesma cor, como nas imagens da Elgato.
             var background = visual.Accent ?? Idle;
-            var logo = DiscordBlurple;
+            var logo = Blend(background, Color.Black, 0.16);
             var foreground = ToColor(theme.PrimaryForeground);
             if (visual.Dimmed)
             {
