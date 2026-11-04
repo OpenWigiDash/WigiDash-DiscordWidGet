@@ -124,6 +124,7 @@ public sealed class AudioToggleInstance(IWidgetContext context) : DiscordOptions
         var combo = index == 0 ? Options.A : Options.B;
         return new ButtonVisual(GlyphOf(combo), Name(combo) ?? (index == 0 ? "A" : "B"))
         {
+            GlyphAccent = WidgetIcons.Find(combo.IconKey)?.Accent,
             Accent = ButtonRenderer.Success,
             Detail = index == 0 ? "A · toque para B" : "B · toque para A",
             DotCount = 2,

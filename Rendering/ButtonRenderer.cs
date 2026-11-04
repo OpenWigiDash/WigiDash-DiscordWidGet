@@ -61,6 +61,9 @@ public sealed record ButtonVisual(string Glyph, string Label)
     /// </summary>
     public (string Left, string Right)? GlyphPair { get; init; }
 
+    /// <summary>Glifo de destaque de um ícone combinado da biblioteca do SDK (<see cref="WidgetIcon.Accent"/>).</summary>
+    public string? GlyphAccent { get; init; }
+
     /// <summary>Bolinhas no topo, uma por opção (como o Audio Device do plugin System). <c>null</c> = sem bolinhas.</summary>
     public int? DotCount { get; init; }
 
@@ -173,15 +176,24 @@ public static class ButtonRenderer
                     // Os dois ícones um pouco menores, afastados do centro, e o do meio (as setas) bem menor.
                     // No Mini, menores para não encostar no selo do canto.
                     var pairSize = glyphSize * (compact ? 0.5f : 0.8f);
-                    using var pairFont = new Font(IconFont, pairSize, GraphicsUnit.Pixel);
-                    using var middleFont = new Font(IconFont, pairSize * 0.5f, GraphicsUnit.Pixel);
                     var offset = pairSize * 0.85f;
-                    g.DrawString(leftGlyph, pairFont, brush, iconArea with { X = iconArea.X - offset }, Centered);
-                    g.DrawString(rightGlyph, pairFont, brush, iconArea with { X = iconArea.X + offset }, Centered);
-                    g.DrawString(visual.Glyph, middleFont, brush, iconArea, Centered);
+                    var center = new PointF(iconArea.X + iconArea.Width / 2, iconArea.Y + iconArea.Height / 2);
+                    DrawGlyph(g, leftGlyph, center with { X = center.X - offset }, pairSize * GlyphFill, brush);
+                    DrawGlyph(g, rightGlyph, center with { X = center.X + offset }, pairSize * GlyphFill, brush);
+                    DrawGlyph(g, visual.Glyph, center, pairSize * 0.5f * GlyphFill, brush);
                 }
                 else
-                    g.DrawString(visual.Glyph, iconFont, brush, iconArea, Centered);
+                {
+                    var box = new IconRect(iconArea.X, iconArea.Y, iconArea.Width, iconArea.Height);
+                    var place = WidgetIconLayout.Place(visual.GlyphAccent is not null, box, glyphSize * GlyphFill);
+                    DrawGlyph(g, visual.Glyph, new PointF(place.Main.CenterX, place.Main.CenterY), place.MainSize, brush);
+                    if (visual.GlyphAccent is { } accent && place.AccentCircle is { } circle)
+                    {
+                        using (var cut = new SolidBrush(background))
+                            g.FillEllipse(cut, circle.X, circle.Y, circle.Width, circle.Height);
+                        DrawGlyph(g, accent, new PointF(circle.CenterX, circle.CenterY), place.AccentSize, brush);
+                    }
+                }
                 if (visual.Slashed)
                     DrawSlash(g, iconArea, glyphSize, background, foreground);
                 if (visual.GlyphBadge is { } badgeGlyph)
@@ -614,6 +626,30 @@ public static class ButtonRenderer
 
     private static Color Blend(Color a, Color b, double t) => Color.FromArgb(
         (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
+
+    /// <summary>Quanto do tamanho da fonte o desenho do glifo ocupa (a caixa da fonte tem sobra em volta).</summary>
+    private const float GlyphFill = 0.8f;
+
+    /// <summary>
+    /// Desenha o glifo pelo contorno real, centrado em <paramref name="center"/> e com o maior lado igual a
+    /// <paramref name="side"/> (como o SDK recomenda: a caixa da fonte não é centrada no desenho).
+    /// </summary>
+    private static void DrawGlyph(Graphics g, string glyph, PointF center, float side, Brush brush)
+    {
+        using var family = new FontFamily(IconFont);
+        using var path = new GraphicsPath();
+        path.AddString(glyph, family, (int)FontStyle.Regular, 100, PointF.Empty, StringFormat.GenericTypographic);
+        var bounds = path.GetBounds();
+        if (bounds.Width <= 0 || bounds.Height <= 0)
+            return;
+        var scale = side / Math.Max(bounds.Width, bounds.Height);
+        using var matrix = new Matrix();
+        matrix.Translate(center.X, center.Y);
+        matrix.Scale(scale, scale);
+        matrix.Translate(-(bounds.X + bounds.Width / 2), -(bounds.Y + bounds.Height / 2));
+        path.Transform(matrix);
+        g.FillPath(brush, path);
+    }
 
     private static string PickIconFont()
     {

@@ -109,6 +109,7 @@ public sealed class SetAudioDeviceInstance(IWidgetContext context) : DiscordOpti
         };
         return new ButtonVisual(Glyph, string.IsNullOrWhiteSpace(Options.Title) ? name ?? Label : Options.Title)
         {
+            GlyphAccent = WidgetIcons.Find(Options.IconKey)?.Accent,
             Accent = active ? ButtonRenderer.Success : null,
             Detail = active ? "Em uso" : "Toque para usar",
         };
