@@ -14,7 +14,13 @@
 
     @foreach (var (name, combo, isA) in new[] { ("A", Instance.Options.A, true), ("B", Instance.Options.B, false) })
     {
-        <MudText Typo="Typo.subtitle2">Combinação @name</MudText>
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudText Typo="Typo.subtitle2">Combinação @name</MudText>
+            <MudButton Variant="Variant.Outlined" Size="Size.Small" OnClick="() => PickIcon(isA)">
+                <WidgetIconView IconKey="@(combo.IconKey ?? AutomaticKey)" Size="22" />
+                <span style="margin-left: 8px">@(combo.IconKey is null ? "Ícone automático" : WidgetIcons.Find(combo.IconKey)?.Name)</span>
+            </MudButton>
+        </MudStack>
         @if (Instance.Options.Side != AudioSide.Output)
         {
             <MudSelect T="string" Value="combo.InputId" ValueChanged="id => SelectInput(isA, id)" Label="Entrada"
@@ -37,13 +43,6 @@
         }
     }
 
-    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
-        <MudButton Variant="Variant.Outlined" OnClick="PickIcon">
-            <WidgetIconView IconKey="@(Instance.Options.IconKey ?? AutomaticKey)" Size="24" />
-            <span style="margin-left: 8px">Trocar ícone</span>
-        </MudButton>
-        <MudText Typo="Typo.caption">@(Instance.Options.IconKey is null ? "Automático" : WidgetIcons.Find(Instance.Options.IconKey)?.Name)</MudText>
-    </MudStack>
 </MudStack>
 
 @code {
@@ -60,16 +59,17 @@
         _ => "headset",
     };
 
-    private async Task PickIcon()
+    private async Task PickIcon(bool isA)
     {
+        var combo = isA ? Instance.Options.A : Instance.Options.B;
         var choice = await IconPicker.PickAsync(new WidgetIconPickerOptions
         {
-            Title = "Ícone do botão",
-            Current = Instance.Options.IconKey,
+            Title = isA ? "Ícone da combinação A" : "Ícone da combinação B",
+            Current = combo.IconKey,
             Automatic = WidgetIcons.Find(AutomaticKey),
         });
         if (choice is not null)
-            await Save(Instance.Options with { IconKey = choice.Key });
+            await Update(isA, c => c with { IconKey = choice.Key });
     }
 
     private Task SelectInput(bool isA, string id) => Update(isA, c => c with

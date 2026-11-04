@@ -255,9 +255,13 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
         Assert.Equal(0, widget.CurrentVisual().DotIndex);
         Assert.Single(widget.CurrentVisual().CornerGlyphs!);
 
-        // Ícone escolhido na biblioteca do SDK.
-        await widget.SaveOptionsAsync(widget.Options with { IconKey = "speaker" });
+        // Cada combinação com o seu ícone da biblioteca do SDK; o tile mostra o da ativa.
+        await widget.SaveOptionsAsync(widget.Options with { A = widget.Options.A with { IconKey = "speaker" } });
         Assert.Equal(WidgetIcons.Find("speaker")!.Glyph, widget.CurrentVisual().Glyph);
+        await widget.SaveOptionsAsync(widget.Options with { B = widget.Options.B with { IconKey = "headset" } });
+        await Tap(widget);
+        Assert.Equal(1, widget.CurrentVisual().DotIndex);
+        Assert.Equal(WidgetIcons.Find("headset")!.Glyph, widget.CurrentVisual().Glyph);
     }
 
     [Fact]

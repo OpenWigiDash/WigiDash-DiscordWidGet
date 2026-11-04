@@ -16,6 +16,9 @@ public sealed record AudioCombo
     public string? InputName { get; init; }
     public string? OutputId { get; init; }
     public string? OutputName { get; init; }
+
+    /// <summary>Ícone da combinação, da biblioteca do SDK (<see cref="WidgetIcons"/>); <c>null</c> = automático.</summary>
+    public string? IconKey { get; init; }
 }
 
 public sealed record AudioToggleOptions
@@ -24,9 +27,6 @@ public sealed record AudioToggleOptions
     public AudioSide Side { get; init; } = AudioSide.Both;
     public AudioCombo A { get; init; } = new();
     public AudioCombo B { get; init; } = new();
-
-    /// <summary>Ícone principal escolhido na biblioteca do SDK (<see cref="WidgetIcons"/>); <c>null</c> = automático.</summary>
-    public string? IconKey { get; init; }
 }
 
 /// <summary>Alterna o Discord entre duas combinações de dispositivo (SET_VOICE_SETTINGS input/output device_id).</summary>
@@ -35,7 +35,7 @@ public sealed class AudioToggleWidget : DiscordWidgetBase
     public override WidgetManifest Manifest { get; } = CreateManifest(
         new Guid("c3f4f0a2-7d1e-4f63-9a59-2b8e6d1c5a47"),
         "Discord: Audio Device Toggle",
-        "Cada toque alterna o microfone e/ou a saída do Discord entre duas combinações. Verde quando está numa delas.",
+        "Cada toque alterna o microfone e/ou a saída do Discord entre duas combinações, cada uma com o seu ícone. Verde quando está numa delas.",
         iconButton: true);
 
     protected override ButtonVisual Preview => new(Glyphs.Headphone, "Audio Toggle")
@@ -43,7 +43,6 @@ public sealed class AudioToggleWidget : DiscordWidgetBase
         DotCount = 2,
         DotIndex = 0,
         CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers],
-        Accent = ButtonRenderer.Success,
     };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new AudioToggleInstance(context);
@@ -51,7 +50,11 @@ public sealed class AudioToggleWidget : DiscordWidgetBase
 
 public sealed class AudioToggleInstance(IWidgetContext context) : DiscordOptionsInstance<AudioToggleOptions>(context)
 {
-    protected override string Glyph => WidgetIcons.Find(Options.IconKey)?.Glyph is { Length: > 0 } glyph ? glyph : AutomaticGlyph;
+    protected override string Glyph => AutomaticGlyph;
+
+    /// <summary>O ícone da combinação, ou o automático se ela não tem um.</summary>
+    public string GlyphOf(AudioCombo combo) =>
+        WidgetIcons.Find(combo.IconKey)?.Glyph is { Length: > 0 } glyph ? glyph : AutomaticGlyph;
     protected override string Label => "Audio Toggle";
 
     public override Type? OptionsComponent => typeof(AudioToggleOptionsPanel);
@@ -114,7 +117,7 @@ public sealed class AudioToggleInstance(IWidgetContext context) : DiscordOptions
             };
         }
         var combo = index == 0 ? Options.A : Options.B;
-        return new ButtonVisual(Glyph, Name(combo) ?? (index == 0 ? "A" : "B"))
+        return new ButtonVisual(GlyphOf(combo), Name(combo) ?? (index == 0 ? "A" : "B"))
         {
             Accent = ButtonRenderer.Success,
             Detail = index == 0 ? "A · toque para B" : "B · toque para A",
