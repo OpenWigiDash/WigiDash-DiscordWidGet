@@ -21,6 +21,8 @@
                 <span style="margin-left: 8px">@(combo.IconKey is null ? "Ícone automático" : WidgetIcons.Find(combo.IconKey)?.Name)</span>
             </MudButton>
         </MudStack>
+        <MudTextField T="string" Value="combo.Title" ValueChanged="v => Update(isA, c => c with { Title = v })"
+                      Label="Título" Placeholder="Nome do dispositivo" Variant="Variant.Outlined" Style="max-width: 320px" />
         @if (Instance.Options.Side != AudioSide.Output)
         {
             <MudSelect T="string" Value="combo.InputId" ValueChanged="id => SelectInput(isA, id)" Label="Entrada"

@@ -19,6 +19,9 @@ public sealed record AudioCombo
 
     /// <summary>Ícone da combinação, da biblioteca do SDK (<see cref="WidgetIcons"/>); <c>null</c> = automático.</summary>
     public string? IconKey { get; init; }
+
+    /// <summary>Título da combinação no tile; vazio = o nome do dispositivo.</summary>
+    public string? Title { get; init; }
 }
 
 public sealed record AudioToggleOptions
@@ -85,7 +88,7 @@ public sealed class AudioToggleInstance(IWidgetContext context) : DiscordOptions
     public int CurrentIndex(VoiceSettings? voice) =>
         Matches(Options.A, voice) ? 0 : Matches(Options.B, voice) ? 1 : -1;
 
-    private string? Name(AudioCombo combo) => Options.Side switch
+    private string? Name(AudioCombo combo) => !string.IsNullOrWhiteSpace(combo.Title) ? combo.Title : Options.Side switch
     {
         AudioSide.Input => combo.InputName,
         AudioSide.Output => combo.OutputName,

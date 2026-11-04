@@ -251,6 +251,8 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
         Assert.Equal(("mic2", "out2"), (_inputDevice, _outputDevice));
         Assert.Equal(1, widget.CurrentVisual().DotIndex);
         Assert.Equal("Caixas", widget.CurrentVisual().Label);
+        await widget.SaveOptionsAsync(widget.Options with { B = widget.Options.B with { Title = "Som da sala" } });
+        Assert.Equal("Som da sala", widget.CurrentVisual().Label);
 
         // Só o microfone trocado no Discord: não bate com nenhuma combinação.
         await _session.SetVoiceSettingsAsync(new JsonObject { ["input"] = new JsonObject { ["device_id"] = "mic1" } }, default);
