@@ -30,6 +30,9 @@ public static class AvatarCache
         return null;
     }
 
+    /// <summary>Os testes põem a imagem direto, sem baixar.</summary>
+    internal static void Put(string url, Bitmap image) => Images[url] = image;
+
     private static async Task DownloadAsync(string url)
     {
         try

@@ -88,9 +88,16 @@ public sealed class PluginTests
         // Canal de voz com 8 pessoas: grade de avatares em cada tamanho (nome embaixo só no Large).
         string[] names = ["Ana", "Bruno", "Caio", "Duda", "Enzo", "Fê", "Gabi", "Hugo"];
         var faces = names.Select((n, i) => new AvatarFace(null, n, i == 1)).ToList();
+        var logo = new Bitmap(64, 64);
+        using (var g = Graphics.FromImage(logo))
+        {
+            g.Clear(Color.FromArgb(232, 163, 61));
+            g.FillEllipse(Brushes.Navy, 16, 16, 32, 32);
+        }
+        AvatarCache.Put("test://logo", logo);
         foreach (var size in new[] { WidgetSize.Small, WidgetSize.Wide, WidgetSize.Large })
             Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(size.CellSpan), theme,
-                    new ButtonVisual(Glyphs.Volume, "Voice 15") { Faces = faces, Badge = faces.Count, Detail = "Toque para entrar" }),
+                    new ButtonVisual(Glyphs.Volume, "Voice 15") { Faces = faces, Badge = faces.Count, BadgeGlyph = Glyphs.Volume, CornerImageUrl = "test://logo", Detail = "Toque para entrar" }),
                 Path.Combine(output, $"estado-canal-{size.Columns}x{size.Rows}.png"));
         Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Large.CellSpan), theme,
                 new ButtonVisual(Glyphs.Ringer, "3  Ana") { Accent = ButtonRenderer.Success, Detail = "bora jogar?",

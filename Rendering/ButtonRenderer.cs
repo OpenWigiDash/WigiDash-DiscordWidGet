@@ -31,6 +31,12 @@ public sealed record ButtonVisual(string Glyph, string Label)
     /// <summary>Contador no canto superior direito (ex.: pessoas no canal).</summary>
     public int? Badge { get; init; }
 
+    /// <summary>Ícone do contador; <c>null</c> = pessoas.</summary>
+    public string? BadgeGlyph { get; init; }
+
+    /// <summary>Imagem redonda pequena no canto superior esquerdo (ex.: logo do servidor junto dos avatares).</summary>
+    public string? CornerImageUrl { get; init; }
+
     /// <summary>Ícone pequeno no canto inferior direito do principal (ex.: a mão do Push to Talk).</summary>
     public string? GlyphBadge { get; init; }
 
@@ -159,9 +165,12 @@ public static class ButtonRenderer
                 DrawHints(g, size, iconArea, background, foreground);
 
             if (visual.Badge is { } badge)
-                DrawBadge(g, size, theme, badge, background, foreground);
+                DrawBadge(g, size, theme, badge, visual.BadgeGlyph ?? "\uE77B", background, foreground);
             else if (visual.CornerGlyphs is { Count: > 0 } corner)
                 DrawCornerGlyphs(g, size, corner, background, foreground);
+
+            if (AvatarCache.Get(visual.CornerImageUrl) is { } cornerImage)
+                DrawCornerImage(g, size, cornerImage);
 
             if (visual.DotCount is { } dots)
                 DrawDots(g, size, dots, visual.DotIndex, foreground);
@@ -439,7 +448,23 @@ public static class ButtonRenderer
     private static float BadgeHeight(PixelSize size) => Math.Clamp(size.Height / 6.5f, 20f, 26f);
 
     /// <summary>Pílula com o contador no canto superior direito, como o "2" de pessoas da Elgato.</summary>
-    private static void DrawBadge(Graphics g, PixelSize size, WidgetTheme theme, int count, Color background, Color foreground)
+    /// <summary>Imagem redonda do tamanho do contador, no canto superior esquerdo.</summary>
+    private static void DrawCornerImage(Graphics g, PixelSize size, Image image)
+    {
+        var d = size.Height < 100 ? 16f : BadgeHeight(size);
+        var inset = size.Height < 100 ? 5f : 8f;
+        var circle = new RectangleF(inset, inset, d, d);
+        using var clip = new GraphicsPath();
+        clip.AddEllipse(circle);
+        var state = g.Save();
+        g.SetClip(clip);
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        lock (image)
+            g.DrawImage(image, circle);
+        g.Restore(state);
+    }
+
+    private static void DrawBadge(Graphics g, PixelSize size, WidgetTheme theme, int count, string glyph, Color background, Color foreground)
     {
         var height = BadgeHeight(size);
         using var font = new Font(theme.SecondaryFontFamily, height * 0.62f, GraphicsUnit.Pixel);
@@ -453,7 +478,7 @@ public static class ButtonRenderer
         using (var fill = new SolidBrush(Color.FromArgb(200, Blend(background, Color.Black, 0.55))))
             g.FillPath(fill, path);
         using var brush = new SolidBrush(foreground);
-        g.DrawString("\uE77B", iconFont, brush, new RectangleF(rect.X + height * 0.15f, rect.Y, height * 0.75f, height), Centered);
+        g.DrawString(glyph, iconFont, brush, new RectangleF(rect.X + height * 0.15f, rect.Y, height * 0.75f, height), Centered);
         g.DrawString(text, font, brush, new RectangleF(rect.X + height * 0.8f, rect.Y, textWidth + height * 0.2f, height), Centered);
     }
 

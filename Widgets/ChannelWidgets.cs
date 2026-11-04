@@ -116,12 +116,14 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
             accent = ButtonRenderer.Lighter(ButtonRenderer.DiscordBlurple);
         // Mini: não cabem avatares; fica o botão de entrar com o contador.
         if (Context.PixelSize.Height < 100)
-            return new ButtonVisual(Glyph, name) { Accent = accent, Badge = users.Count };
+            return new ButtonVisual(Glyph, name) { Accent = accent, Badge = users.Count, BadgeGlyph = Glyph };
         return new ButtonVisual(Glyph, name)
         {
             Accent = accent,
             Faces = users.Select(u => new AvatarFace(u.AvatarUrl, u.Name, Session.IsSpeaking(u.Id))).ToList(),
             Badge = users.Count,
+            BadgeGlyph = Glyph,
+            CornerImageUrl = GuildIconUrl(Options.GuildId),
             Detail = joined ? null : "Toque para entrar",
         };
     }
