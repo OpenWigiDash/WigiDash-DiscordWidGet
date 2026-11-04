@@ -58,6 +58,12 @@ public sealed record AudioDeviceOptions
     public string? InputName { get; init; }
     public string? OutputId { get; init; }
     public string? OutputName { get; init; }
+
+    /// <summary>Ícone da biblioteca do SDK (<see cref="WidgetIcons"/>); <c>null</c> = automático (microfone ou caixa de som).</summary>
+    public string? IconKey { get; init; }
+
+    /// <summary>Título no lugar do nome do dispositivo; vazio = o nome.</summary>
+    public string? Title { get; init; }
 }
 
 /// <summary>Troca o microfone e/ou a saída do Discord (SET_VOICE_SETTINGS input/output device_id).</summary>
@@ -76,8 +82,11 @@ public sealed class SetAudioDeviceWidget : DiscordWidgetBase
 
 public sealed class SetAudioDeviceInstance(IWidgetContext context) : DiscordOptionsInstance<AudioDeviceOptions>(context)
 {
-    protected override string Glyph => Options.Side == AudioSide.Input ? Glyphs.Microphone : Glyphs.Speakers;
-    protected override string Label => "Audio Device";
+    protected override string Glyph => WidgetIcons.Find(Options.IconKey)?.Glyph is { Length: > 0 } glyph ? glyph : AutomaticGlyph;
+    protected override string Label => string.IsNullOrWhiteSpace(Options.Title) ? "Audio Device" : Options.Title;
+
+    /// <summary>O ícone sem escolha: microfone para entrada, caixa de som para saída ou as duas.</summary>
+    public string AutomaticGlyph => Options.Side == AudioSide.Input ? Glyphs.Microphone : Glyphs.Speakers;
 
     public override Type? OptionsComponent => typeof(AudioDeviceOptionsPanel);
 
@@ -98,7 +107,7 @@ public sealed class SetAudioDeviceInstance(IWidgetContext context) : DiscordOpti
             AudioSide.Output => Options.OutputName,
             _ => $"{Options.InputName} / {Options.OutputName}",
         };
-        return new ButtonVisual(Glyph, name ?? Label)
+        return new ButtonVisual(Glyph, string.IsNullOrWhiteSpace(Options.Title) ? name ?? Label : Options.Title)
         {
             Accent = active ? ButtonRenderer.Success : null,
             Detail = active ? "Em uso" : "Toque para usar",

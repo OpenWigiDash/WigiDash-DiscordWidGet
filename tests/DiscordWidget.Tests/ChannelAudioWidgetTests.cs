@@ -217,6 +217,12 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         Assert.Equal("mic2", _inputDevice);
         Assert.Equal("Em uso", widget.CurrentVisual().Detail);
+        Assert.Equal("Shure", widget.CurrentVisual().Label);
+
+        // Título e ícone escolhidos nas configurações.
+        await widget.SaveOptionsAsync(widget.Options with { Title = "Mic da live", IconKey = "headset" });
+        Assert.Equal("Mic da live", widget.CurrentVisual().Label);
+        Assert.Equal(WidgetIcons.Find("headset")!.Glyph, widget.CurrentVisual().Glyph);
     }
 
     [Fact]
