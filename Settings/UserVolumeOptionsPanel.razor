@@ -1,15 +1,33 @@
 @implements IDisposable
 
-@* Pessoa e ação do widget User Volume Control. A lista é de quem está na sua call agora. *@
+@* Pessoa e ação do widget User Volume Control. A pessoa vem da sua call ou de qualquer canal de voz escolhido aqui:
+   o Discord não lista os membros de um servidor pela API local, só quem está num canal de voz. *@
 <MudStack Spacing="2">
+    @if (Instance.Options.UserName is { } chosen)
+    {
+        <MudText Typo="Typo.body2">Escolhida: <b>@chosen</b></MudText>
+    }
+    <MudText Typo="Typo.caption">
+        Escolha alguém da sua call ou procure num canal de voz de qualquer servidor, sem precisar entrar.
+    </MudText>
+    <MudSelect T="string" Value="_guildId" ValueChanged="SelectGuild" Label="Servidor"
+               Variant="Variant.Outlined" Disabled="@(!Ready)" Style="min-width: 320px">
+        @foreach (var guild in _guilds)
+        {
+            <MudSelectItem Value="@guild.Id">@guild.Name</MudSelectItem>
+        }
+    </MudSelect>
+    <MudSelect T="string" Value="_channelId" ValueChanged="SelectChannel" Label="Canal de voz"
+               Variant="Variant.Outlined" Disabled="@(!Ready || _channels.Count == 0)" Style="min-width: 320px">
+        @foreach (var channel in _channels)
+        {
+            <MudSelectItem Value="@channel.Id">@channel.Name</MudSelectItem>
+        }
+    </MudSelect>
     @if (Users.Count == 0)
     {
         <MudText Typo="Typo.caption" Color="Color.Warning">
-            Entre numa call no Discord para escolher a pessoa.
-            @if (Instance.Options.UserName is { } name)
-            {
-                <span>Escolhida: @name.</span>
-            }
+            @(_channelId is null ? "Entre numa call ou escolha um canal de voz com gente." : "Ninguém nesse canal agora.")
         </MudText>
     }
     else
@@ -22,6 +40,10 @@
             }
         </MudSelect>
     }
+    @if (_error is not null)
+    {
+        <MudText Typo="Typo.caption" Color="Color.Error">@_error</MudText>
+    }
     <VolumeActionFields Action="Instance.Options.Action" Step="Instance.Options.Step" Value="Instance.Options.Value"
                         Max="200" AllowMute="true"
                         Changed="c => Instance.SaveOptionsAsync(Instance.Options with { Action = c.Action, Step = c.Step, Value = c.Value })" />
@@ -31,9 +53,49 @@
     [Parameter, EditorRequired]
     public UserVolumeInstance Instance { get; set; } = default!;
 
-    private IReadOnlyList<VoiceUser> Users => Instance.Session.VoiceChannel?.Users ?? [];
+    private IReadOnlyList<Guild> _guilds = [];
+    private IReadOnlyList<Channel> _channels = [];
+    private string? _guildId;
+    private string? _channelId;
+    private IDisposable? _watch;
+    private string? _error;
 
-    protected override void OnInitialized() => Instance.Session.Changed += OnChanged;
+    private bool Ready => Instance.Session.State == DiscordState.Ready;
+
+    /// <summary>Quem está na sua call e no canal escolhido aqui, sem repetir.</summary>
+    private IReadOnlyList<VoiceUser> Users =>
+        (Instance.Session.VoiceChannel?.Users ?? [])
+            .Concat(_channelId is { } id ? Instance.Session.GetChannel(id)?.Users ?? [] : [])
+            .DistinctBy(u => u.Id)
+            .ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Instance.Session.Changed += OnChanged;
+        if (Ready)
+            await Load(async () => _guilds = await Instance.Session.GetGuildsAsync());
+    }
+
+    private async Task SelectGuild(string guildId)
+    {
+        _guildId = guildId;
+        _channelId = null;
+        Watch(null);
+        await Load(async () => _channels = (await Instance.Session.GetChannelsAsync(guildId)).Where(c => c.IsVoice).ToList());
+    }
+
+    private void SelectChannel(string channelId)
+    {
+        _channelId = channelId;
+        Watch(channelId);
+    }
+
+    /// <summary>Acompanha o canal só enquanto a tela está aberta (GET_CHANNEL e VOICE_STATE_* dele).</summary>
+    private void Watch(string? channelId)
+    {
+        _watch?.Dispose();
+        _watch = channelId is null ? null : Instance.Session.WatchChannel(channelId);
+    }
 
     private Task SelectUser(string id) => Instance.SaveOptionsAsync(Instance.Options with
     {
@@ -41,7 +103,24 @@
         UserName = Users.FirstOrDefault(u => u.Id == id)?.Name,
     });
 
+    private async Task Load(Func<Task> action)
+    {
+        try
+        {
+            _error = null;
+            await action();
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
     private void OnChanged() => InvokeAsync(StateHasChanged);
 
-    public void Dispose() => Instance.Session.Changed -= OnChanged;
+    public void Dispose()
+    {
+        Instance.Session.Changed -= OnChanged;
+        _watch?.Dispose();
+    }
 }
