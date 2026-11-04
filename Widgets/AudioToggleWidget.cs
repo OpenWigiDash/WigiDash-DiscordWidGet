@@ -44,6 +44,7 @@ public sealed class AudioToggleWidget : DiscordWidgetBase
         GlyphPair = (Glyphs.Headphone, Glyphs.Speakers),
         DotCount = 2,
         DotIndex = 0,
+        CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers],
     };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new AudioToggleInstance(context);

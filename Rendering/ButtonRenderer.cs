@@ -171,7 +171,8 @@ public static class ButtonRenderer
                 if (visual.GlyphPair is var (leftGlyph, rightGlyph))
                 {
                     // Os dois ícones um pouco menores, afastados do centro, e o do meio (as setas) bem menor.
-                    var pairSize = glyphSize * 0.8f;
+                    // No Mini, menores para não encostar no selo do canto.
+                    var pairSize = glyphSize * (compact ? 0.5f : 0.8f);
                     using var pairFont = new Font(IconFont, pairSize, GraphicsUnit.Pixel);
                     using var middleFont = new Font(IconFont, pairSize * 0.5f, GraphicsUnit.Pixel);
                     var offset = pairSize * 0.85f;
