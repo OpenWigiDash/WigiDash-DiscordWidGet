@@ -55,6 +55,12 @@ public sealed record ButtonVisual(string Glyph, string Label)
     /// <summary>Lista (ex.: últimas notificações), desenhada no lugar do ícone quando o tile é alto (Large).</summary>
     public IReadOnlyList<ListLine>? Lines { get; init; }
 
+    /// <summary>
+    /// Dois ícones lado a lado com <see cref="Glyph"/> pequeno entre eles (ex.: headset ⇄ caixa de som), no lugar
+    /// do ícone único.
+    /// </summary>
+    public (string Left, string Right)? GlyphPair { get; init; }
+
     /// <summary>Bolinhas no topo, uma por opção (como o Audio Device do plugin System). <c>null</c> = sem bolinhas.</summary>
     public int? DotCount { get; init; }
 
@@ -162,7 +168,19 @@ public static class ButtonRenderer
                 var glyphSize = Math.Min(iconArea.Height * 0.62f, size.Width * 0.4f);
                 using var iconFont = new Font(IconFont, glyphSize, GraphicsUnit.Pixel);
                 using var brush = new SolidBrush(foreground);
-                g.DrawString(visual.Glyph, iconFont, brush, iconArea, Centered);
+                if (visual.GlyphPair is var (leftGlyph, rightGlyph))
+                {
+                    // Os dois ícones um pouco menores, afastados do centro, e o do meio (as setas) bem menor.
+                    var pairSize = glyphSize * 0.8f;
+                    using var pairFont = new Font(IconFont, pairSize, GraphicsUnit.Pixel);
+                    using var middleFont = new Font(IconFont, pairSize * 0.5f, GraphicsUnit.Pixel);
+                    var offset = pairSize * 0.85f;
+                    g.DrawString(leftGlyph, pairFont, brush, iconArea with { X = iconArea.X - offset }, Centered);
+                    g.DrawString(rightGlyph, pairFont, brush, iconArea with { X = iconArea.X + offset }, Centered);
+                    g.DrawString(visual.Glyph, middleFont, brush, iconArea, Centered);
+                }
+                else
+                    g.DrawString(visual.Glyph, iconFont, brush, iconArea, Centered);
                 if (visual.Slashed)
                     DrawSlash(g, iconArea, glyphSize, background, foreground);
                 if (visual.GlyphBadge is { } badgeGlyph)

@@ -38,11 +38,12 @@ public sealed class AudioToggleWidget : DiscordWidgetBase
         "Cada toque alterna o microfone e/ou a saída do Discord entre duas combinações, cada uma com o seu ícone. Verde quando está numa delas.",
         iconButton: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Headphone, "Audio Toggle")
+    // Headset ⇄ caixa de som: o ícone do tipo mostra que o botão alterna entre dois dispositivos.
+    protected override ButtonVisual Preview => new(Glyphs.Switch, "Audio Toggle")
     {
+        GlyphPair = (Glyphs.Headphone, Glyphs.Speakers),
         DotCount = 2,
         DotIndex = 0,
-        CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers],
     };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new AudioToggleInstance(context);
