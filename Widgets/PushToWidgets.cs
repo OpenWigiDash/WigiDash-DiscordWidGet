@@ -17,7 +17,8 @@ public sealed class PushToTalkWidget : DiscordWidgetBase
         "Enquanto o dedo está no widget o microfone fica aberto; ao soltar, muta. Use com o microfone mutado.",
         iconButton: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Microphone, "Push to Talk") { GlyphBadge = Glyphs.Touch };
+    // Pessoa falando e microfone, com a mão no canto: segure para falar (opção C do Victor).
+    protected override ButtonVisual Preview => new("", "Push to Talk") { GlyphPair = (Glyphs.Speaking, Glyphs.Microphone), GlyphBadge = Glyphs.Touch };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new PushToInstance(context, talk: true);
 }
