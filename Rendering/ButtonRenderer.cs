@@ -399,29 +399,40 @@ public static class ButtonRenderer
         var circle = new RectangleF(cx - d / 2, cy - d / 2, d, d);
         using (var fill = new SolidBrush(background))
             g.FillEllipse(fill, RectangleF.Inflate(circle, 3, 3));
-        using var clip = new GraphicsPath();
-        clip.AddEllipse(circle);
-        var state = g.Save();
-        g.SetClip(clip);
-        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        lock (image)
-            g.DrawImage(image, circle);
-        g.Restore(state);
+        DrawRoundImage(g, image, circle);
+    }
+
+    /// <summary>
+    /// Imagem recortada em círculo com borda suave: reduz a imagem para o tamanho final em alta qualidade e pinta
+    /// um círculo com ela (o recorte com SetClip do GDI+ não tem antialias e deixava a borda serrilhada).
+    /// </summary>
+    private static void DrawRoundImage(Graphics g, Image image, RectangleF rect)
+    {
+        var side = Math.Max(1, (int)Math.Ceiling(Math.Max(rect.Width, rect.Height)));
+        using var scaled = new Bitmap(side, side, PixelFormat.Format32bppArgb);
+        using (var sg = Graphics.FromImage(scaled))
+        {
+            sg.InterpolationMode = InterpolationMode.HighQualityBicubic;
+            sg.PixelOffsetMode = PixelOffsetMode.HighQuality;
+            sg.CompositingQuality = CompositingQuality.HighQuality;
+            lock (image)
+                sg.DrawImage(image, 0, 0, side, side);
+        }
+        using var brush = new TextureBrush(scaled, WrapMode.Clamp);
+        brush.TranslateTransform(rect.X, rect.Y);
+        brush.ScaleTransform(rect.Width / side, rect.Height / side);
+        var mode = g.SmoothingMode;
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+        g.FillEllipse(brush, rect);
+        g.SmoothingMode = mode;
     }
 
     private static void DrawAvatar(Graphics g, RectangleF rect, AvatarFace face)
     {
-        using var clip = new GraphicsPath();
-        clip.AddEllipse(rect);
         var image = AvatarCache.Get(face.Url);
         if (image is not null)
         {
-            var state = g.Save();
-            g.SetClip(clip);
-            g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-            lock (image)
-                g.DrawImage(image, rect);
-            g.Restore(state);
+            DrawRoundImage(g, image, rect);
             return;
         }
         // Enquanto o avatar não chega: a inicial sobre a cor da pessoa (estável pelo nome).
@@ -577,15 +588,7 @@ public static class ButtonRenderer
     {
         var d = size.Height < 100 ? 16f : BadgeHeight(size);
         var inset = size.Height < 100 ? 5f : 8f;
-        var circle = new RectangleF(inset, inset, d, d);
-        using var clip = new GraphicsPath();
-        clip.AddEllipse(circle);
-        var state = g.Save();
-        g.SetClip(clip);
-        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
-        lock (image)
-            g.DrawImage(image, circle);
-        g.Restore(state);
+        DrawRoundImage(g, image, new RectangleF(inset, inset, d, d));
     }
 
     private static void DrawBadge(Graphics g, PixelSize size, WidgetTheme theme, int count, string glyph, Color background, Color foreground)
