@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Text.Json.Nodes;
 using OpenWigi.Sdk;
 using WigiDash.DiscordWidget.Discord;
@@ -25,9 +26,10 @@ public sealed class VoiceChannelWidget : DiscordWidgetBase
     public override WidgetManifest Manifest { get; } = CreateManifest(
         new Guid("086178a6-2acc-485a-864b-d33e5ca30c41"),
         "Discord: Voice Channel",
-        "Toque entra no canal de voz escolhido; tocar de novo sai da call. Fica verde enquanto você está nele.");
+        "Toque entra no canal de voz escolhido; tocar de novo sai da call. Fica verde enquanto você está nele.",
+        iconButton: true, large: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Phone, "Voice Channel");
+    protected override ButtonVisual Preview => new(Glyphs.Volume, "Voice Channel");
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new ChannelInstance(context, voice: true);
 }
@@ -38,7 +40,8 @@ public sealed class TextChannelWidget : DiscordWidgetBase
     public override WidgetManifest Manifest { get; } = CreateManifest(
         new Guid("03d9439f-fc1f-4f0d-86e3-6e3953e33bb4"),
         "Discord: Text Channel",
-        "Toque abre o canal de texto escolhido na janela do Discord.");
+        "Toque abre o canal de texto escolhido na janela do Discord.",
+        iconButton: true);
 
     protected override ButtonVisual Preview => new(Glyphs.Message, "Text Channel");
 
@@ -49,7 +52,7 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
 {
     public bool IsVoice { get; } = voice;
 
-    protected override string Glyph => IsVoice ? Glyphs.Phone : Glyphs.Message;
+    protected override string Glyph => IsVoice ? Glyphs.Volume : Glyphs.Message;
     protected override string Label => IsVoice ? "Voice Channel" : "Text Channel";
 
     public override Type? OptionsComponent => typeof(ChannelOptionsPanel);
@@ -103,19 +106,25 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
         var users = info?.Users ?? [];
         var joined = IsInChannel;
         WatchArrivals(info is null ? -1 : users.Count, joined);
-        var accent = joined ? ButtonRenderer.Success : ButtonRenderer.DiscordBlurple;
+        Color? accent = joined ? ButtonRenderer.Success : null;
+        // Vazio: o ícone de canal de voz do Discord, com o logo do servidor no canto.
         if (users.Count == 0)
-            return new ButtonVisual(Glyphs.Phone, name) { Accent = accent, Detail = "Canal vazio", ImageUrl = GuildIconUrl(Options.GuildId) };
+            return new ButtonVisual(Glyph, name) { Accent = accent, Detail = "Canal vazio", ImageBadgeUrl = GuildIconUrl(Options.GuildId) };
 
         // Alguém entrou e você não está: pisca mais claro por uns segundos para chamar a atenção.
         var now = Context.Host.Time.GetUtcNow();
         if (!joined && now < _pulseUntil && (now - (_pulseUntil - JoinPulse)) / PulseFrame % 2 < 1)
-            accent = ButtonRenderer.Lighter(ButtonRenderer.DiscordBlurple);
-        return new ButtonVisual(Glyphs.Phone, name)
+            accent = ButtonRenderer.Lighter(ButtonRenderer.Idle);
+        // Mini: não cabem avatares; fica o botão de entrar com o contador.
+        if (Context.PixelSize.Height < 100)
+            return new ButtonVisual(Glyph, name) { Accent = accent, Badge = users.Count, BadgeGlyph = Glyph };
+        return new ButtonVisual(Glyph, name)
         {
             Accent = accent,
             Faces = users.Select(u => new AvatarFace(u.AvatarUrl, u.Name, Session.IsSpeaking(u.Id))).ToList(),
             Badge = users.Count,
+            BadgeGlyph = Glyph,
+            CornerImageUrl = GuildIconUrl(Options.GuildId),
             Detail = joined ? null : "Toque para entrar",
         };
     }

@@ -18,7 +18,8 @@ A tentativa antiga em net472, que parou no erro 4001 do WebSocket, ficou guardad
 | Voice Channel | Entra e sai de um canal de voz; mostra quantos estão na call |
 | Text Channel | Abre um canal de texto |
 | Set Audio Device | Troca o microfone e/ou a saída |
-| Volume Control | Volume de entrada ou saída (no 2x1, esquerda abaixa e direita aumenta) |
+| Audio Device Toggle | Alterna o microfone e/ou a saída entre duas combinações (A e B), cada uma com o seu ícone da biblioteca do SDK |
+| Volume Control | Volume de entrada ou saída (esquerda abaixa e direita aumenta) |
 | User Volume Control | Volume ou mute local de alguém da call |
 | Soundboard | Toca um som do soundboard |
 | Notifications | Conta as notificações; abre, limpa ou passa por elas |
@@ -26,7 +27,7 @@ A tentativa antiga em net472, que parou no erro 4001 do WebSocket, ficou guardad
 | Video Toggle | Liga e desliga a câmera |
 | Stream Toggle | Liga e desliga a transmissão de tela |
 
-Todos aceitam 1x1 e 2x1 e usam uma conexão só com o Discord.
+Os botões de um toque (mute, entrar num canal, trocar dispositivo) aceitam do Mini ao Wide; Voice Channel e Notifications também têm o Large, com a grade de avatares com nome e a lista das últimas notificações. Todos usam uma conexão só com o Discord.
 
 ## Como fala com o Discord
 
@@ -84,7 +85,7 @@ preview, a versão do plugin também precisa ser preview.
 
 ## Desenvolvimento
 
-Precisa do SDK do .NET 10. O contrato dos widgets é o pacote `OpenWigiDash.Sdk` (3.0.0-preview.1);
+Precisa do SDK do .NET 10. O contrato dos widgets é o pacote `OpenWigiDash.Sdk` (3.1.0-preview.1);
 a referência para autores de plugins é o
 [docs/sdk.md](https://github.com/OpenWigiDash/OpenWigiDashManager/blob/main/docs/sdk.md) do OpenWigiDashManager.
 

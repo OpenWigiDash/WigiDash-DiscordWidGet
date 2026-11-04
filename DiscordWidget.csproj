@@ -21,7 +21,7 @@
     <OpenWigiDashPlugin>true</OpenWigiDashPlugin>
     <PackageId>OpenWigiDash.Discord</PackageId>
     <Title>Discord</Title>
-    <Version>3.0.0-preview.1</Version>
+    <Version>3.1.0-preview.1</Version>
     <PackageTags>discord</PackageTags>
     <PackageProjectUrl>https://github.com/OpenWigiDash/WigiDash-DiscordWidGet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/OpenWigiDash/WigiDash-DiscordWidGet</RepositoryUrl>
@@ -32,7 +32,7 @@
   <!-- O SDK vem do nuget.org. Para testar mudanças no SDK antes de publicar, compile com
        -p:UseLocalOpenWigiSdk=true e o repo OpenWigiDashManager clonado ao lado deste. -->
   <PropertyGroup>
-    <OpenWigiSdkVersion>3.0.0-preview.1</OpenWigiSdkVersion>
+    <OpenWigiSdkVersion>3.1.0-preview.1</OpenWigiSdkVersion>
     <OpenWigiSdkProject Condition="'$(OpenWigiSdkProject)' == ''">$(MSBuildThisFileDirectory)..\OpenWigiDashManager\src\OpenWigi.Sdk\OpenWigi.Sdk.csproj</OpenWigiSdkProject>
   </PropertyGroup>
 
@@ -57,6 +57,7 @@
   <ItemGroup>
     <None Include="icon.png" CopyToOutputDirectory="PreserveNewest" Pack="true" PackagePath="\" Condition="Exists('icon.png')" />
     <None Include="README.md" Pack="true" PackagePath="\" />
+    <EmbeddedResource Include="Rendering\discord-logo-mask.png" LogicalName="WigiDash.DiscordWidget.Rendering.discord-logo-mask.png" />
     <None Remove="discord_app_icon.png" />
   </ItemGroup>
 

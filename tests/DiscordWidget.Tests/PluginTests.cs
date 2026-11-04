@@ -33,7 +33,8 @@ public sealed class PluginTests
         [
             "Discord: Mute", "Discord: Deafen", "Discord: Push to Talk", "Discord: Push to Mute",
             "Discord: Mute inteligente", "Discord: Voice Input Mode", "Discord: Soundboard",
-            "Discord: Video Toggle", "Discord: Stream Toggle",
+            "Discord: Video Toggle", "Discord: Stream Toggle", "Discord: Voice Channel", "Discord: Text Channel",
+            "Discord: Set Audio Device", "Discord: Audio Device Toggle",
         ];
         foreach (var widget in LoadWidgets())
             Assert.Equal(iconButtons.Contains(widget.Manifest.Name), widget.Manifest.SupportedSizes.Contains(WidgetSize.Mini));
@@ -83,6 +84,39 @@ public sealed class PluginTests
             Path.Combine(output, "estado-mini.png"));
         Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Mini.CellSpan), theme, new ButtonVisual(Glyphs.Volume, "60%") { Level = 0.6, Hints = AdjustHints.Horizontal }),
             Path.Combine(output, "estado-mini-volume.png"));
+
+        // Canal de voz com 8 pessoas: grade de avatares em cada tamanho (nome embaixo só no Large).
+        string[] names = ["Ana", "Bruno", "Caio", "Duda", "Enzo", "Fê", "Gabi", "Hugo"];
+        var faces = names.Select((n, i) => new AvatarFace(null, n, i == 1)).ToList();
+        var logo = new Bitmap(64, 64);
+        using (var g = Graphics.FromImage(logo))
+        {
+            g.Clear(Color.FromArgb(232, 163, 61));
+            g.FillEllipse(Brushes.Navy, 16, 16, 32, 32);
+        }
+        AvatarCache.Put("test://logo", logo);
+        foreach (var size in new[] { WidgetSize.Small, WidgetSize.Wide, WidgetSize.Large })
+            Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(size.CellSpan), theme,
+                    new ButtonVisual(Glyphs.Volume, "Voice 15") { Faces = faces, Badge = faces.Count, BadgeGlyph = Glyphs.Volume, CornerImageUrl = "test://logo", Detail = "Toque para entrar" }),
+                Path.Combine(output, $"estado-canal-{size.Columns}x{size.Rows}.png"));
+        Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Large.CellSpan), theme,
+                new ButtonVisual(Glyphs.Ringer, "3  Ana") { Accent = ButtonRenderer.Success, Detail = "bora jogar?",
+                    Lines = [new("Ana", "bora jogar?"), new("Bruno", "chegando em 5 min"), new("Caio", "alguém viu o patch novo?")] }),
+            Path.Combine(output, "estado-notificacoes-large.png"));
+        var small = TileFrame.Default.ContentSize(WidgetSize.Small.CellSpan);
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Volume, "Voice 15") { Detail = "Canal vazio", ImageBadgeUrl = "test://logo" }),
+            Path.Combine(output, "estado-canal-vazio.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Headphone, "Outro dispositivo")
+                { Accent = ButtonRenderer.Info, Detail = "Toque para ir para A", DotCount = 2, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
+            Path.Combine(output, "estado-toggle-fora.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Headphone, "Headset")
+                { Accent = ButtonRenderer.Success, Detail = "A · toque para B", DotCount = 2, DotIndex = 0, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
+            Path.Combine(output, "estado-toggle-a.png"));
+        Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Mini.CellSpan), theme, new ButtonVisual(WidgetIcons.Find("headset")!.Glyph, "HeadSet")
+                { Accent = ButtonRenderer.Success, DotCount = 2, DotIndex = 0, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
+            Path.Combine(output, "estado-toggle-mini.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.MicrophoneOff, "Mute") { Accent = ButtonRenderer.Danger, Detail = "Mutado" }),
+            Path.Combine(output, "estado-mutado.png"));
     }
 
     internal static void Save(WidgetFrame frame, string path)

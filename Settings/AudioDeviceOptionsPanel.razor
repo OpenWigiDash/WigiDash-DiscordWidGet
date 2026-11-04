@@ -1,5 +1,15 @@
 @* Dispositivos para o widget Set Audio Device. A lista vem do próprio Discord (available_devices). *@
+@inject IWidgetIconPicker IconPicker
 <MudStack Spacing="2">
+    <MudTextField T="string" Value="Instance.Options.Title" ValueChanged="v => Save(Instance.Options with { Title = v })"
+                  Label="Título" Placeholder="Nome do dispositivo" Variant="Variant.Outlined" Style="max-width: 320px" />
+    <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+        <MudButton Variant="Variant.Outlined" OnClick="PickIcon">
+            <WidgetIconView IconKey="@(Instance.Options.IconKey ?? AutomaticKey)" Size="24" />
+            <span style="margin-left: 8px">Trocar ícone</span>
+        </MudButton>
+        <MudText Typo="Typo.caption">@(Instance.Options.IconKey is null ? "Automático" : WidgetIcons.Find(Instance.Options.IconKey)?.Name)</MudText>
+    </MudStack>
     @if (Voice is null)
     {
         <MudText Typo="Typo.caption" Color="Color.Warning">Conecte o Discord para ver os dispositivos.</MudText>
@@ -37,6 +47,21 @@
     public SetAudioDeviceInstance Instance { get; set; } = default!;
 
     private VoiceSettings? Voice => Instance.Session.Voice;
+
+    /// <summary>Ícone da biblioteca igual ao automático, para a prévia da opção "Automático".</summary>
+    private string AutomaticKey => Instance.Options.Side == AudioSide.Input ? "microphone" : "speaker";
+
+    private async Task PickIcon()
+    {
+        var choice = await IconPicker.PickAsync(new WidgetIconPickerOptions
+        {
+            Title = "Ícone do botão",
+            Current = Instance.Options.IconKey,
+            Automatic = WidgetIcons.Find(AutomaticKey),
+        });
+        if (choice is not null)
+            await Save(Instance.Options with { IconKey = choice.Key });
+    }
 
     private Task SelectInput(string id) => Save(Instance.Options with
     {

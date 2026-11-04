@@ -58,6 +58,12 @@ public sealed record AudioDeviceOptions
     public string? InputName { get; init; }
     public string? OutputId { get; init; }
     public string? OutputName { get; init; }
+
+    /// <summary>Ícone da biblioteca do SDK (<see cref="WidgetIcons"/>); <c>null</c> = automático (microfone ou caixa de som).</summary>
+    public string? IconKey { get; init; }
+
+    /// <summary>Título no lugar do nome do dispositivo; vazio = o nome.</summary>
+    public string? Title { get; init; }
 }
 
 /// <summary>Troca o microfone e/ou a saída do Discord (SET_VOICE_SETTINGS input/output device_id).</summary>
@@ -66,7 +72,8 @@ public sealed class SetAudioDeviceWidget : DiscordWidgetBase
     public override WidgetManifest Manifest { get; } = CreateManifest(
         new Guid("127b7877-9b6f-4500-a376-ba4a38b6a9ee"),
         "Discord: Set Audio Device",
-        "Toque troca o dispositivo de entrada e/ou saída do Discord para o escolhido. Fica azul quando já está nele.");
+        "Toque troca o dispositivo de entrada e/ou saída do Discord para o escolhido. Fica azul quando já está nele.",
+        iconButton: true);
 
     protected override ButtonVisual Preview => new(Glyphs.Speakers, "Audio Device");
 
@@ -75,8 +82,11 @@ public sealed class SetAudioDeviceWidget : DiscordWidgetBase
 
 public sealed class SetAudioDeviceInstance(IWidgetContext context) : DiscordOptionsInstance<AudioDeviceOptions>(context)
 {
-    protected override string Glyph => Options.Side == AudioSide.Input ? Glyphs.Microphone : Glyphs.Speakers;
-    protected override string Label => "Audio Device";
+    protected override string Glyph => WidgetIcons.Find(Options.IconKey)?.Glyph is { Length: > 0 } glyph ? glyph : AutomaticGlyph;
+    protected override string Label => string.IsNullOrWhiteSpace(Options.Title) ? "Audio Device" : Options.Title;
+
+    /// <summary>O ícone sem escolha: microfone para entrada, caixa de som para saída ou as duas.</summary>
+    public string AutomaticGlyph => Options.Side == AudioSide.Input ? Glyphs.Microphone : Glyphs.Speakers;
 
     public override Type? OptionsComponent => typeof(AudioDeviceOptionsPanel);
 
@@ -97,8 +107,9 @@ public sealed class SetAudioDeviceInstance(IWidgetContext context) : DiscordOpti
             AudioSide.Output => Options.OutputName,
             _ => $"{Options.InputName} / {Options.OutputName}",
         };
-        return new ButtonVisual(Glyph, name ?? Label)
+        return new ButtonVisual(Glyph, string.IsNullOrWhiteSpace(Options.Title) ? name ?? Label : Options.Title)
         {
+            GlyphAccent = WidgetIcons.Find(Options.IconKey)?.Accent,
             Accent = active ? ButtonRenderer.Success : null,
             Detail = active ? "Em uso" : "Toque para usar",
         };
@@ -154,7 +165,8 @@ public sealed class VolumeControlInstance(IWidgetContext context) : DiscordOptio
 
     protected override ButtonVisual GetVisual()
     {
-        var volume = (IsInput ? Session.Voice?.Input.Volume : Session.Voice?.Output.Volume) ?? 0;
+        // O RPC dá amplitude; o widget mostra o percentual do controle do Discord.
+        var volume = VolumeScale.ToPercent((IsInput ? Session.Voice?.Input.Volume : Session.Voice?.Output.Volume) ?? 0);
         return new ButtonVisual(Glyph, $"{Math.Round(volume)}%")
         {
             Detail = Options.Action == VolumeAction.Set ? $"{Label}: {Options.Value}%" : Label,
@@ -167,7 +179,7 @@ public sealed class VolumeControlInstance(IWidgetContext context) : DiscordOptio
     {
         if (Session.Voice is not { } voice)
             return;
-        var current = IsInput ? voice.Input.Volume : voice.Output.Volume;
+        var current = VolumeScale.ToPercent(IsInput ? voice.Input.Volume : voice.Output.Volume);
         double target;
         if (Options.Action == VolumeAction.Set && touch.Kind == TouchKind.Tap)
             target = Options.Value;
@@ -179,7 +191,7 @@ public sealed class VolumeControlInstance(IWidgetContext context) : DiscordOptio
         // Acima do limite (ex.: estava em 150% antes de desligar o "até 200%"), só deixa abaixar.
         target = Math.Clamp(target, 0, Math.Max(Max, Math.Min(current, target)));
         var key = IsInput ? "input" : "output";
-        await Session.SetVoiceSettingsAsync(new JsonObject { [key] = new JsonObject { ["volume"] = target } }, cancellationToken)
+        await Session.SetVoiceSettingsAsync(new JsonObject { [key] = new JsonObject { ["volume"] = VolumeScale.ToAmplitude(target) } }, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -225,8 +237,8 @@ public sealed class UserVolumeInstance(IWidgetContext context) : DiscordOptionsI
             return new ButtonVisual(Glyphs.Mute, user.Name) { Accent = ButtonRenderer.Danger, Detail = "Mutado para você" };
         return new ButtonVisual(Glyph, user.Name)
         {
-            Detail = $"{Math.Round(user.Volume)}%",
-            Level = user.Volume / 200,
+            Detail = $"{Math.Round(VolumeScale.ToPercent(user.Volume))}%",
+            Level = VolumeScale.ToPercent(user.Volume) / 200,
             Hints = Options.Action == VolumeAction.Adjust ? VolumeTouch.Hints : AdjustHints.None,
             Faces = [new AvatarFace(user.AvatarUrl, user.Name, Session.IsSpeaking(user.Id))],
         };
@@ -248,12 +260,13 @@ public sealed class UserVolumeInstance(IWidgetContext context) : DiscordOptionsI
                 await Session.SetUserVoiceSettingsAsync(user.Id, null, mute, cancellationToken).ConfigureAwait(false);
                 break;
             case VolumeAction.Set when touch.Kind == TouchKind.Tap:
-                await Session.SetUserVoiceSettingsAsync(user.Id, Options.Value, null, cancellationToken).ConfigureAwait(false);
+                await Session.SetUserVoiceSettingsAsync(user.Id, VolumeScale.ToAmplitude(Options.Value), null, cancellationToken).ConfigureAwait(false);
                 break;
             default:
                 var step = Options.Action == VolumeAction.Adjust ? Options.Step : 10;
                 if (VolumeTouch.Delta(touch, Context.PixelSize, step) is { } delta)
-                    await Session.SetUserVoiceSettingsAsync(user.Id, user.Volume + delta, null, cancellationToken).ConfigureAwait(false);
+                    await Session.SetUserVoiceSettingsAsync(user.Id,
+                        VolumeScale.ToAmplitude(Math.Clamp(VolumeScale.ToPercent(user.Volume) + delta, 0, 200)), null, cancellationToken).ConfigureAwait(false);
                 break;
         }
     }

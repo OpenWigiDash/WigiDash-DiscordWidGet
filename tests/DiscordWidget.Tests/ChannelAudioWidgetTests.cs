@@ -17,6 +17,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
     private string? _channelId;
     private string? _textChannelId;
     private string _inputDevice = "default";
+    private string _outputDevice = "default";
     private double _outputVolume = 100;
     private double _friendVolume = 100;
     private bool _friendMuted;
@@ -25,6 +26,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
     {
         var json = Json.VoiceSettings();
         json["input"]!["device_id"] = _inputDevice;
+        json["output"]!["device_id"] = _outputDevice;
         json["output"]!["volume"] = _outputVolume;
         return json;
     }
@@ -36,7 +38,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
             {
               "id": "{{id}}", "name": "Geral", "guild_id": "g1",
               "voice_states": [
-                { "nick": null, "mute": {{(_friendMuted ? "true" : "false")}}, "volume": {{_friendVolume}},
+                { "nick": null, "mute": {{(_friendMuted ? "true" : "false")}}, "volume": {{_friendVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)}},
                   "voice_state": { "self_mute": false, "self_deaf": false },
                   "user": { "id": "u2", "username": "amigo", "global_name": "Amigo", "avatar": null } },
                 { "mute": false, "volume": 100, "voice_state": { "self_mute": true },
@@ -53,6 +55,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
             {
                 case "SET_VOICE_SETTINGS":
                     if (args["input"]?["device_id"] is { } device) _inputDevice = (string)device!;
+                    if (args["output"]?["device_id"] is { } output) _outputDevice = (string)output!;
                     if (args["output"]?["volume"] is { } volume) _outputVolume = (double)volume;
                     return Voice();
                 case "GET_VOICE_SETTINGS":
@@ -122,7 +125,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         // Fora da call: o canal é acompanhado (GET_CHANNEL + VOICE_STATE_* do c1) e mostra quem está lá.
         await FakeDiscord.WaitUntilAsync(() => widget.CurrentVisual().Badge == 2);
-        Assert.Equal(ButtonRenderer.DiscordBlurple, widget.CurrentVisual().Accent);
+        Assert.Null(widget.CurrentVisual().Accent);
         Assert.Equal(["Amigo", "tester"], widget.CurrentVisual().Faces!.Select(f => f.Name));
         Assert.EndsWith("/embed/avatars/" + ((2UL >> 22) % 6) + ".png", widget.CurrentVisual().Faces![0].Url);
 
@@ -214,6 +217,59 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         Assert.Equal("mic2", _inputDevice);
         Assert.Equal("Em uso", widget.CurrentVisual().Detail);
+        Assert.Equal("Shure", widget.CurrentVisual().Label);
+
+        // Título e ícone escolhidos nas configurações.
+        await widget.SaveOptionsAsync(widget.Options with { Title = "Mic da live", IconKey = "headset" });
+        Assert.Equal("Mic da live", widget.CurrentVisual().Label);
+        Assert.Equal(WidgetIcons.Find("headset")!.Glyph, widget.CurrentVisual().Glyph);
+    }
+
+    [Fact]
+    public async Task Toggle_de_audio_alterna_entre_A_e_B_e_fica_azul_quando_trocam_por_fora()
+    {
+        await using var widget = await CreateAsync<AudioToggleInstance>(new AudioToggleWidget());
+        Assert.True(widget.CurrentVisual().Dimmed);
+        await widget.SaveOptionsAsync(new AudioToggleOptions
+        {
+            A = new AudioCombo { InputId = "mic1", InputName = "Headset", OutputId = "out1", OutputName = "Headset" },
+            B = new AudioCombo { InputId = "mic2", InputName = "Shure", OutputId = "out2", OutputName = "Caixas" },
+        });
+
+        // Fora das duas: azul, nenhuma bolinha cheia; o toque vai para A.
+        var visual = widget.CurrentVisual();
+        Assert.Equal(ButtonRenderer.Info, visual.Accent);
+        Assert.Equal(-1, visual.DotIndex);
+        Assert.Equal(2, visual.CornerGlyphs!.Count);
+
+        await Tap(widget);
+        Assert.Equal(("mic1", "out1"), (_inputDevice, _outputDevice));
+        Assert.Equal(0, widget.CurrentVisual().DotIndex);
+        Assert.Equal(ButtonRenderer.Success, widget.CurrentVisual().Accent);
+
+        await Tap(widget);
+        Assert.Equal(("mic2", "out2"), (_inputDevice, _outputDevice));
+        Assert.Equal(1, widget.CurrentVisual().DotIndex);
+        Assert.Equal("Caixas", widget.CurrentVisual().Label);
+        await widget.SaveOptionsAsync(widget.Options with { B = widget.Options.B with { Title = "Som da sala" } });
+        Assert.Equal("Som da sala", widget.CurrentVisual().Label);
+
+        // Só o microfone trocado no Discord: não bate com nenhuma combinação.
+        await _session.SetVoiceSettingsAsync(new JsonObject { ["input"] = new JsonObject { ["device_id"] = "mic1" } }, default);
+        Assert.Equal(-1, widget.CurrentVisual().DotIndex);
+
+        // Só a entrada: a saída não importa.
+        await widget.SaveOptionsAsync(widget.Options with { Side = AudioSide.Input });
+        Assert.Equal(0, widget.CurrentVisual().DotIndex);
+        Assert.Single(widget.CurrentVisual().CornerGlyphs!);
+
+        // Cada combinação com o seu ícone da biblioteca do SDK; o tile mostra o da ativa.
+        await widget.SaveOptionsAsync(widget.Options with { A = widget.Options.A with { IconKey = "speaker" } });
+        Assert.Equal(WidgetIcons.Find("speaker")!.Glyph, widget.CurrentVisual().Glyph);
+        await widget.SaveOptionsAsync(widget.Options with { B = widget.Options.B with { IconKey = "headset" } });
+        await Tap(widget);
+        Assert.Equal(1, widget.CurrentVisual().DotIndex);
+        Assert.Equal(WidgetIcons.Find("headset")!.Glyph, widget.CurrentVisual().Glyph);
     }
 
     [Fact]
@@ -223,16 +279,16 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
         await widget.SaveOptionsAsync(new VolumeOptions { Side = AudioSide.Output, Step = 10 });
 
         await Tap(widget, x: 10);
-        Assert.Equal(90, _outputVolume);
+        Assert.Equal(90, Pct(_outputVolume));
 
         // Sem "até 200%", a saída para em 100%.
         await Tap(widget, x: TileFrame.Default.ContentSize(WidgetSize.Wide.CellSpan).Width - 10);
         await Tap(widget, x: TileFrame.Default.ContentSize(WidgetSize.Wide.CellSpan).Width - 10);
-        Assert.Equal(100, _outputVolume);
+        Assert.Equal(100, Pct(_outputVolume));
 
         await widget.SaveOptionsAsync(widget.Options with { AllowBoost = true });
         await Tap(widget, x: TileFrame.Default.ContentSize(WidgetSize.Wide.CellSpan).Width - 10);
-        Assert.Equal(110, _outputVolume);
+        Assert.Equal(110, Pct(_outputVolume));
         Assert.Equal("110%", widget.CurrentVisual().Label);
         Assert.Equal(AdjustHints.Horizontal, widget.CurrentVisual().Hints);
     }
@@ -240,15 +296,15 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
     [Fact]
     public async Task Volume_no_1x1_esquerda_abaixa_e_direita_aumenta()
     {
-        _outputVolume = 50;
+        _outputVolume = VolumeScale.ToAmplitude(50);
         await using var widget = await CreateAsync<VolumeControlInstance>(new VolumeControlWidget());
         await widget.SaveOptionsAsync(new VolumeOptions { Side = AudioSide.Output, Step = 10 });
 
         await widget.OnTouchAsync(new TouchEvent(TouchKind.Tap, TileFrame.Default.ContentSize(WidgetSize.Small.CellSpan).Width - 10, 60, TimeSpan.Zero), CancellationToken.None);
-        Assert.Equal(60, _outputVolume);
+        Assert.Equal(60, Pct(_outputVolume));
 
         await widget.OnTouchAsync(new TouchEvent(TouchKind.Tap, 10, 60, TimeSpan.Zero), CancellationToken.None);
-        Assert.Equal(50, _outputVolume);
+        Assert.Equal(50, Pct(_outputVolume));
         Assert.Equal(AdjustHints.Horizontal, widget.CurrentVisual().Hints);
     }
 
@@ -260,7 +316,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         await Tap(widget);
 
-        Assert.Equal(200, _outputVolume);
+        Assert.Equal(200, Pct(_outputVolume));
     }
 
     [Fact]
@@ -274,7 +330,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         // Lado esquerdo abaixa.
         await widget.OnTouchAsync(new TouchEvent(TouchKind.Tap, 10, 60, TimeSpan.Zero), CancellationToken.None);
-        Assert.Equal(80, _friendVolume);
+        Assert.Equal(80, Pct(_friendVolume));
         await FakeDiscord.WaitUntilAsync(() => widget.CurrentVisual().Detail == "80%");
 
         await widget.SaveOptionsAsync(widget.Options with { Action = VolumeAction.ToggleMute });
@@ -291,6 +347,20 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         Assert.Equal("Fora da call", widget.CurrentVisual().Detail);
         Assert.True(widget.CurrentVisual().Dimmed);
+    }
+
+    /// <summary>Amplitude do RPC no percentual do controle do Discord, arredondado.</summary>
+    private static double Pct(double amplitude) => Math.Round(VolumeScale.ToPercent(amplitude));
+
+    [Theory]
+    [InlineData(100, 100)]
+    [InlineData(200, 199.526)]
+    [InlineData(50, 5.623)]
+    [InlineData(0, 0)]
+    public void Escala_do_volume_segue_o_controle_do_Discord(double percent, double amplitude)
+    {
+        Assert.Equal(amplitude, VolumeScale.ToAmplitude(percent), 3);
+        Assert.Equal(percent, VolumeScale.ToPercent(amplitude), 1);
     }
 
     public async Task DisposeAsync()
