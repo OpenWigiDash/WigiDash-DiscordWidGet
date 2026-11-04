@@ -155,7 +155,8 @@ public sealed class VolumeControlInstance(IWidgetContext context) : DiscordOptio
 
     protected override ButtonVisual GetVisual()
     {
-        var volume = (IsInput ? Session.Voice?.Input.Volume : Session.Voice?.Output.Volume) ?? 0;
+        // O RPC dá amplitude; o widget mostra o percentual do controle do Discord.
+        var volume = VolumeScale.ToPercent((IsInput ? Session.Voice?.Input.Volume : Session.Voice?.Output.Volume) ?? 0);
         return new ButtonVisual(Glyph, $"{Math.Round(volume)}%")
         {
             Detail = Options.Action == VolumeAction.Set ? $"{Label}: {Options.Value}%" : Label,
@@ -168,7 +169,7 @@ public sealed class VolumeControlInstance(IWidgetContext context) : DiscordOptio
     {
         if (Session.Voice is not { } voice)
             return;
-        var current = IsInput ? voice.Input.Volume : voice.Output.Volume;
+        var current = VolumeScale.ToPercent(IsInput ? voice.Input.Volume : voice.Output.Volume);
         double target;
         if (Options.Action == VolumeAction.Set && touch.Kind == TouchKind.Tap)
             target = Options.Value;
@@ -180,7 +181,7 @@ public sealed class VolumeControlInstance(IWidgetContext context) : DiscordOptio
         // Acima do limite (ex.: estava em 150% antes de desligar o "até 200%"), só deixa abaixar.
         target = Math.Clamp(target, 0, Math.Max(Max, Math.Min(current, target)));
         var key = IsInput ? "input" : "output";
-        await Session.SetVoiceSettingsAsync(new JsonObject { [key] = new JsonObject { ["volume"] = target } }, cancellationToken)
+        await Session.SetVoiceSettingsAsync(new JsonObject { [key] = new JsonObject { ["volume"] = VolumeScale.ToAmplitude(target) } }, cancellationToken)
             .ConfigureAwait(false);
     }
 }
@@ -226,8 +227,8 @@ public sealed class UserVolumeInstance(IWidgetContext context) : DiscordOptionsI
             return new ButtonVisual(Glyphs.Mute, user.Name) { Accent = ButtonRenderer.Danger, Detail = "Mutado para você" };
         return new ButtonVisual(Glyph, user.Name)
         {
-            Detail = $"{Math.Round(user.Volume)}%",
-            Level = user.Volume / 200,
+            Detail = $"{Math.Round(VolumeScale.ToPercent(user.Volume))}%",
+            Level = VolumeScale.ToPercent(user.Volume) / 200,
             Hints = Options.Action == VolumeAction.Adjust ? VolumeTouch.Hints : AdjustHints.None,
             Faces = [new AvatarFace(user.AvatarUrl, user.Name, Session.IsSpeaking(user.Id))],
         };
@@ -249,12 +250,13 @@ public sealed class UserVolumeInstance(IWidgetContext context) : DiscordOptionsI
                 await Session.SetUserVoiceSettingsAsync(user.Id, null, mute, cancellationToken).ConfigureAwait(false);
                 break;
             case VolumeAction.Set when touch.Kind == TouchKind.Tap:
-                await Session.SetUserVoiceSettingsAsync(user.Id, Options.Value, null, cancellationToken).ConfigureAwait(false);
+                await Session.SetUserVoiceSettingsAsync(user.Id, VolumeScale.ToAmplitude(Options.Value), null, cancellationToken).ConfigureAwait(false);
                 break;
             default:
                 var step = Options.Action == VolumeAction.Adjust ? Options.Step : 10;
                 if (VolumeTouch.Delta(touch, Context.PixelSize, step) is { } delta)
-                    await Session.SetUserVoiceSettingsAsync(user.Id, user.Volume + delta, null, cancellationToken).ConfigureAwait(false);
+                    await Session.SetUserVoiceSettingsAsync(user.Id,
+                        VolumeScale.ToAmplitude(Math.Clamp(VolumeScale.ToPercent(user.Volume) + delta, 0, 200)), null, cancellationToken).ConfigureAwait(false);
                 break;
         }
     }

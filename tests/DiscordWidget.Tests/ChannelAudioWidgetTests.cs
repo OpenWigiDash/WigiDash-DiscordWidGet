@@ -38,7 +38,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
             {
               "id": "{{id}}", "name": "Geral", "guild_id": "g1",
               "voice_states": [
-                { "nick": null, "mute": {{(_friendMuted ? "true" : "false")}}, "volume": {{_friendVolume}},
+                { "nick": null, "mute": {{(_friendMuted ? "true" : "false")}}, "volume": {{_friendVolume.ToString(System.Globalization.CultureInfo.InvariantCulture)}},
                   "voice_state": { "self_mute": false, "self_deaf": false },
                   "user": { "id": "u2", "username": "amigo", "global_name": "Amigo", "avatar": null } },
                 { "mute": false, "volume": 100, "voice_state": { "self_mute": true },
@@ -267,16 +267,16 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
         await widget.SaveOptionsAsync(new VolumeOptions { Side = AudioSide.Output, Step = 10 });
 
         await Tap(widget, x: 10);
-        Assert.Equal(90, _outputVolume);
+        Assert.Equal(90, Pct(_outputVolume));
 
         // Sem "até 200%", a saída para em 100%.
         await Tap(widget, x: TileFrame.Default.ContentSize(WidgetSize.Wide.CellSpan).Width - 10);
         await Tap(widget, x: TileFrame.Default.ContentSize(WidgetSize.Wide.CellSpan).Width - 10);
-        Assert.Equal(100, _outputVolume);
+        Assert.Equal(100, Pct(_outputVolume));
 
         await widget.SaveOptionsAsync(widget.Options with { AllowBoost = true });
         await Tap(widget, x: TileFrame.Default.ContentSize(WidgetSize.Wide.CellSpan).Width - 10);
-        Assert.Equal(110, _outputVolume);
+        Assert.Equal(110, Pct(_outputVolume));
         Assert.Equal("110%", widget.CurrentVisual().Label);
         Assert.Equal(AdjustHints.Horizontal, widget.CurrentVisual().Hints);
     }
@@ -284,15 +284,15 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
     [Fact]
     public async Task Volume_no_1x1_esquerda_abaixa_e_direita_aumenta()
     {
-        _outputVolume = 50;
+        _outputVolume = VolumeScale.ToAmplitude(50);
         await using var widget = await CreateAsync<VolumeControlInstance>(new VolumeControlWidget());
         await widget.SaveOptionsAsync(new VolumeOptions { Side = AudioSide.Output, Step = 10 });
 
         await widget.OnTouchAsync(new TouchEvent(TouchKind.Tap, TileFrame.Default.ContentSize(WidgetSize.Small.CellSpan).Width - 10, 60, TimeSpan.Zero), CancellationToken.None);
-        Assert.Equal(60, _outputVolume);
+        Assert.Equal(60, Pct(_outputVolume));
 
         await widget.OnTouchAsync(new TouchEvent(TouchKind.Tap, 10, 60, TimeSpan.Zero), CancellationToken.None);
-        Assert.Equal(50, _outputVolume);
+        Assert.Equal(50, Pct(_outputVolume));
         Assert.Equal(AdjustHints.Horizontal, widget.CurrentVisual().Hints);
     }
 
@@ -304,7 +304,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         await Tap(widget);
 
-        Assert.Equal(200, _outputVolume);
+        Assert.Equal(200, Pct(_outputVolume));
     }
 
     [Fact]
@@ -318,7 +318,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         // Lado esquerdo abaixa.
         await widget.OnTouchAsync(new TouchEvent(TouchKind.Tap, 10, 60, TimeSpan.Zero), CancellationToken.None);
-        Assert.Equal(80, _friendVolume);
+        Assert.Equal(80, Pct(_friendVolume));
         await FakeDiscord.WaitUntilAsync(() => widget.CurrentVisual().Detail == "80%");
 
         await widget.SaveOptionsAsync(widget.Options with { Action = VolumeAction.ToggleMute });
@@ -335,6 +335,20 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         Assert.Equal("Fora da call", widget.CurrentVisual().Detail);
         Assert.True(widget.CurrentVisual().Dimmed);
+    }
+
+    /// <summary>Amplitude do RPC no percentual do controle do Discord, arredondado.</summary>
+    private static double Pct(double amplitude) => Math.Round(VolumeScale.ToPercent(amplitude));
+
+    [Theory]
+    [InlineData(100, 100)]
+    [InlineData(200, 199.526)]
+    [InlineData(50, 5.623)]
+    [InlineData(0, 0)]
+    public void Escala_do_volume_segue_o_controle_do_Discord(double percent, double amplitude)
+    {
+        Assert.Equal(amplitude, VolumeScale.ToAmplitude(percent), 3);
+        Assert.Equal(percent, VolumeScale.ToPercent(amplitude), 1);
     }
 
     public async Task DisposeAsync()
