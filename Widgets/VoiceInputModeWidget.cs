@@ -17,7 +17,8 @@ public sealed class VoiceInputModeWidget : DiscordWidgetBase
         "Toque alterna o modo de entrada de voz do Discord entre detecção de voz e push to talk.",
         iconButton: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Switch, "Modo de voz");
+    // Pessoa falando ⇄ microfone: alterna entre detecção de voz e push to talk.
+    protected override ButtonVisual Preview => new(Glyphs.Switch, "Modo de voz") { GlyphPair = (Glyphs.Speaking, Glyphs.Microphone) };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new VoiceInputModeInstance(context);
 }
