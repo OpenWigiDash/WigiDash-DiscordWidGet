@@ -61,6 +61,12 @@ public sealed record ButtonVisual(string Glyph, string Label)
     /// </summary>
     public (string Left, string Right)? GlyphPair { get; init; }
 
+    /// <summary>
+    /// Desenha um monitor cheio com <see cref="Glyph"/> recortado por dentro (ícone de transmissão do Discord: tela
+    /// com a seta curva).
+    /// </summary>
+    public bool OnScreen { get; init; }
+
     /// <summary>Glifo de destaque de um ícone combinado da biblioteca do SDK (<see cref="WidgetIcon.Accent"/>).</summary>
     public string? GlyphAccent { get; init; }
 
@@ -190,7 +196,10 @@ public static class ButtonRenderer
                 {
                     var box = new IconRect(iconArea.X, iconArea.Y, iconArea.Width, iconArea.Height);
                     var place = WidgetIconLayout.Place(visual.GlyphAccent is not null, box, glyphSize * GlyphFill);
-                    DrawGlyph(g, visual.Glyph, new PointF(place.Main.CenterX, place.Main.CenterY), place.MainSize, brush);
+                    if (visual.OnScreen)
+                        DrawScreen(g, visual.Glyph, new PointF(place.Main.CenterX, place.Main.CenterY), place.MainSize, brush, background);
+                    else
+                        DrawGlyph(g, visual.Glyph, new PointF(place.Main.CenterX, place.Main.CenterY), place.MainSize, brush);
                     if (visual.GlyphAccent is { } accent && place.AccentCircle is { } circle)
                     {
                         using (var cut = new SolidBrush(background))
@@ -653,6 +662,24 @@ public static class ButtonRenderer
         matrix.Translate(-(bounds.X + bounds.Width / 2), -(bounds.Y + bounds.Height / 2));
         path.Transform(matrix);
         g.FillPath(brush, path);
+    }
+
+    /// <summary>Monitor cheio (tela, pescoço e base) com o glifo na cor do fundo dentro da tela.</summary>
+    private static void DrawScreen(Graphics g, string glyph, PointF center, float side, Brush brush, Color background)
+    {
+        var width = side;
+        var height = side * 0.66f;
+        var top = center.Y - side / 2 + side * 0.04f;
+        var screen = new RectangleF(center.X - width / 2, top, width, height);
+        using (var path = RoundedRect(Rectangle.Round(screen), (int)Math.Max(2, side * 0.1f)))
+            g.FillPath(brush, path);
+        var neck = side * 0.08f;
+        g.FillRectangle(brush, center.X - neck / 2, screen.Bottom, neck, side * 0.14f);
+        using (var path = RoundedRect(Rectangle.Round(new RectangleF(center.X - side * 0.22f, screen.Bottom + side * 0.13f, side * 0.44f, side * 0.08f)),
+                   (int)Math.Max(1, side * 0.04f)))
+            g.FillPath(brush, path);
+        using var cut = new SolidBrush(background);
+        DrawGlyph(g, glyph, new PointF(center.X, screen.Y + height / 2), height * 0.72f, cut);
     }
 
     private static string PickIconFont()

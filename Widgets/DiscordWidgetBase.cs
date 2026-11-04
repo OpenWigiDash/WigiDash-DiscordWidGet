@@ -93,6 +93,9 @@ public abstract class DiscordButtonInstance : IWidgetInstance
     /// <summary>Destaque pequeno no canto do <see cref="Glyph"/> (ícone combinado), também nos estados de sessão.</summary>
     protected virtual string? GlyphAccent => null;
 
+    /// <summary>O <see cref="Glyph"/> vai dentro de um monitor (<see cref="ButtonVisual.OnScreen"/>).</summary>
+    protected virtual bool GlyphOnScreen => false;
+
     /// <summary>Componente Razor com as opções próprias do widget (parâmetro <c>Instance</c>), ou <c>null</c>.</summary>
     public virtual Type? OptionsComponent => null;
 
@@ -122,7 +125,7 @@ public abstract class DiscordButtonInstance : IWidgetInstance
             _ => "Conectando...",
         };
         if (detail is not null)
-            return new ButtonVisual(Glyph, Label) { Detail = detail, Dimmed = true, GlyphAccent = GlyphAccent };
+            return new ButtonVisual(Glyph, Label) { Detail = detail, Dimmed = true, GlyphAccent = GlyphAccent, OnScreen = GlyphOnScreen };
 
         var visual = GetVisual();
         if (!_feedbackActive)

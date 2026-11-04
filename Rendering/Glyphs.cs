@@ -24,6 +24,9 @@ public static class Glyphs
     public const string Server = "";
 
     public const string Info = "";
+
+    /// <summary>Seta curva para a direita: desenhada dentro do monitor no ícone de transmissão.</summary>
+    public const string StreamArrow = "";
     public const string Ringer = "";
     public const string Speakers = "";
     public const string Switch = "";

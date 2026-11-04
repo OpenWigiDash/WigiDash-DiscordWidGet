@@ -120,6 +120,10 @@ public sealed class PluginTests
             Path.Combine(output, "estado-server-logo.png"));
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Message, "#geral") { Detail = "Jogos", ImageBadgeUrl = "test://logo" }),
             Path.Combine(output, "estado-texto.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.StreamArrow, "Transmitindo") { OnScreen = true, Accent = ButtonRenderer.Success }),
+            Path.Combine(output, "estado-stream-on.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.StreamArrow, "Sem transmissão") { OnScreen = true, Slashed = true }),
+            Path.Combine(output, "estado-stream-off.png"));
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.MicrophoneOff, "Mute") { Accent = ButtonRenderer.Danger, Detail = "Mutado" }),
             Path.Combine(output, "estado-mutado.png"));
     }

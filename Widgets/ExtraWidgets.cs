@@ -333,17 +333,21 @@ public sealed class StreamToggleWidget : DiscordWidgetBase
         "Toque liga e desliga a transmissão de tela na call do Discord.",
         iconButton: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Share, "Transmitir");
+    // Monitor com a seta curva por dentro, como o ícone de transmissão do Discord.
+    protected override ButtonVisual Preview => new(Glyphs.StreamArrow, "Transmitir") { OnScreen = true };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new MediaToggleInstance(context, video: false);
 }
 
 public sealed class MediaToggleInstance(IWidgetContext context, bool video) : DiscordButtonInstance(context)
 {
-    protected override string Glyph => video ? Glyphs.Video : Glyphs.Share;
+    protected override string Glyph => video ? Glyphs.Video : Glyphs.StreamArrow;
     protected override string Label => video ? "Câmera" : "Transmitir";
+    protected override bool GlyphOnScreen => !video;
 
-    protected override ButtonVisual GetVisual()
+    protected override ButtonVisual GetVisual() => Visual() with { OnScreen = GlyphOnScreen };
+
+    private ButtonVisual Visual()
     {
         if (Session.VoiceChannel is null)
             return new ButtonVisual(Glyph, Label) { Detail = "Entre numa call", Dimmed = true };
