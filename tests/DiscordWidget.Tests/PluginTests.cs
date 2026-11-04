@@ -118,6 +118,8 @@ public sealed class PluginTests
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Server, "312 online")
                 { ImageUrl = "test://logo", GlyphBadge = Glyphs.Server, Detail = "1.204 membros · Jogos" }),
             Path.Combine(output, "estado-server-logo.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Message, "#geral") { Detail = "Jogos", ImageBadgeUrl = "test://logo" }),
+            Path.Combine(output, "estado-texto.png"));
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.MicrophoneOff, "Mute") { Accent = ButtonRenderer.Danger, Detail = "Mutado" }),
             Path.Combine(output, "estado-mutado.png"));
     }

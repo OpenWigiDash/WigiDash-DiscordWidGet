@@ -97,7 +97,8 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
             return new ButtonVisual(Glyph, Label) { Detail = "Escolha o canal", Dimmed = true };
 
         if (!IsVoice)
-            return new ButtonVisual(Glyph, "#" + Options.ChannelName) { Detail = Options.GuildName };
+            // Logo do servidor no canto do ícone: no canvas não dá para saber de qual servidor é o canal.
+            return new ButtonVisual(Glyph, "#" + Options.ChannelName) { Detail = Options.GuildName, ImageBadgeUrl = GuildIconUrl(Options.GuildId) };
 
         // Mesmo padrão das imagens do plugin da Elgato: fundo azul do Discord fora da call e verde dentro,
         // avatares de quem está no canal, contador no canto e anel de quem está falando. Vazio, o logo do servidor.
