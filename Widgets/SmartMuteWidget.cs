@@ -19,7 +19,7 @@ public sealed class SmartMuteWidget : DiscordWidgetBase
         "Toque alterna o mute. Segurar inverte só enquanto o dedo está na tela: falando, segurar muta; mutado, segurar abre o microfone.",
         iconButton: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Microphone, "Mute inteligente") { GlyphBadge = Glyphs.Touch };
+    protected override ButtonVisual Preview => new(Glyphs.Microphone, "Mute inteligente") { GlyphBadge = Glyphs.Hand, BadgeHold = true };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new SmartMuteInstance(context);
 }
@@ -39,12 +39,12 @@ public sealed class SmartMuteInstance(IWidgetContext context) : DiscordButtonIns
         if (_heldFrom is { } before)
         {
             return before
-                ? new ButtonVisual(Glyphs.Microphone, "Falando") { Accent = ButtonRenderer.Success, GlyphBadge = Glyphs.Touch, Detail = "Solte para mutar" }
-                : new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Touch, Detail = "Solte para falar" };
+                ? new ButtonVisual(Glyphs.Microphone, "Falando") { Accent = ButtonRenderer.Success, GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Solte para mutar" }
+                : new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Solte para falar" };
         }
         return muted
-            ? new ButtonVisual(glyph, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Touch, Detail = "Segure para falar" }
-            : new ButtonVisual(glyph, "Microfone ligado") { GlyphBadge = Glyphs.Touch, Detail = "Segure para mutar" };
+            ? new ButtonVisual(glyph, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Segure para falar" }
+            : new ButtonVisual(glyph, "Microfone ligado") { GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Segure para mutar" };
     }
 
     protected override async Task OnReadyTouchAsync(TouchEvent touch, CancellationToken cancellationToken)

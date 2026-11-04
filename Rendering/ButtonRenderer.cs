@@ -40,6 +40,9 @@ public sealed record ButtonVisual(string Glyph, string Label)
     /// <summary>Ícone pequeno no canto inferior direito do principal (ex.: a mão do Push to Talk).</summary>
     public string? GlyphBadge { get; init; }
 
+    /// <summary>Anel em volta do <see cref="GlyphBadge"/>, quase fechado: "segure" (long press).</summary>
+    public bool BadgeHold { get; init; }
+
     /// <summary>Risco diagonal sobre o ícone (ex.: câmera desligada = a mesma câmera, cortada).</summary>
     public bool Slashed { get; init; }
 
@@ -181,16 +184,22 @@ public static class ButtonRenderer
                 var glyphSize = compact ? Math.Min(iconArea.Height * 1.05f, size.Width * 0.45f) : Math.Min(iconArea.Height * 0.62f, size.Width * 0.4f);
                 using var iconFont = new Font(IconFont, glyphSize, GraphicsUnit.Pixel);
                 using var brush = new SolidBrush(foreground);
+                // O selo vai no canto do ícone; com dois ícones, no da direita.
+                var badgeArea = iconArea;
+                var badgeSize = glyphSize;
                 if (visual.GlyphPair is var (leftGlyph, rightGlyph))
                 {
                     // Os dois ícones um pouco menores, afastados do centro, e o do meio (as setas) bem menor.
                     // No Mini, menores para não encostar no selo do canto.
                     var pairSize = glyphSize * (compact ? 0.5f : 0.8f);
-                    var offset = pairSize * 0.85f;
+                    // Sem glifo no meio, os dois ficam mais perto.
+                    var offset = pairSize * (string.IsNullOrEmpty(visual.Glyph) ? 0.62f : 0.85f);
                     var center = new PointF(iconArea.X + iconArea.Width / 2, iconArea.Y + iconArea.Height / 2);
                     DrawGlyph(g, leftGlyph, center with { X = center.X - offset }, pairSize * GlyphFill, brush);
                     DrawGlyph(g, rightGlyph, center with { X = center.X + offset }, pairSize * GlyphFill, brush);
                     DrawGlyph(g, visual.Glyph, center, pairSize * 0.5f * GlyphFill, brush);
+                    badgeArea = iconArea with { X = iconArea.X + offset };
+                    badgeSize = pairSize;
                 }
                 else
                 {
@@ -210,7 +219,7 @@ public static class ButtonRenderer
                 if (visual.Slashed)
                     DrawSlash(g, iconArea, glyphSize, background, foreground);
                 if (visual.GlyphBadge is { } badgeGlyph)
-                    DrawGlyphBadge(g, iconArea, glyphSize, badgeGlyph, background, foreground);
+                    DrawGlyphBadge(g, badgeArea, badgeSize, badgeGlyph, background, foreground, visual.BadgeHold);
                 else if (AvatarCache.Get(visual.ImageBadgeUrl) is { } badgeImage)
                     DrawImageBadge(g, iconArea, glyphSize, badgeImage, background);
             }
@@ -426,7 +435,8 @@ public static class ButtonRenderer
     }
 
     /// <summary>Ícone pequeno num círculo da cor do fundo, encostado no canto inferior direito do principal.</summary>
-    private static void DrawGlyphBadge(Graphics g, RectangleF area, float glyphSize, string glyph, Color background, Color foreground)
+    private static void DrawGlyphBadge(Graphics g, RectangleF area, float glyphSize, string glyph, Color background, Color foreground,
+        bool hold = false)
     {
         var d = glyphSize * 0.62f;
         var cx = area.X + area.Width / 2 + glyphSize * 0.55f;
@@ -434,9 +444,14 @@ public static class ButtonRenderer
         var circle = new RectangleF(cx - d / 2, cy - d / 2, d, d);
         using (var fill = new SolidBrush(background))
             g.FillEllipse(fill, RectangleF.Inflate(circle, 2, 2));
-        using var font = new Font(IconFont, d * 0.8f, GraphicsUnit.Pixel);
         using var brush = new SolidBrush(foreground);
-        g.DrawString(glyph, font, brush, circle, Centered);
+        DrawGlyph(g, glyph, new PointF(cx, cy), d * (hold ? 0.6f : 0.72f), brush);
+        if (hold)
+        {
+            // Anel de "segure", como o progresso do long press: quase fechado, aberto em cima.
+            using var ring = new Pen(foreground, Math.Max(1.5f, d / 14)) { StartCap = LineCap.Round, EndCap = LineCap.Round };
+            g.DrawArc(ring, RectangleF.Inflate(circle, -d * 0.04f, -d * 0.04f), -60, 300);
+        }
     }
 
     /// <summary>Risco do canto superior esquerdo ao inferior direito, com contorno da cor do fundo.</summary>
