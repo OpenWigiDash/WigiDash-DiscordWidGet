@@ -169,14 +169,15 @@ public static class ButtonRenderer
             }
             else
             {
-                var glyphSize = Math.Min(iconArea.Height * 0.62f, size.Width * 0.4f);
+                // No Mini o ícone é o tile: ocupa quase toda a altura livre.
+                var glyphSize = compact ? Math.Min(iconArea.Height * 1.05f, size.Width * 0.45f) : Math.Min(iconArea.Height * 0.62f, size.Width * 0.4f);
                 using var iconFont = new Font(IconFont, glyphSize, GraphicsUnit.Pixel);
                 using var brush = new SolidBrush(foreground);
                 if (visual.GlyphPair is var (leftGlyph, rightGlyph))
                 {
                     // Os dois ícones um pouco menores, afastados do centro, e o do meio (as setas) bem menor.
                     // No Mini, menores para não encostar no selo do canto.
-                    var pairSize = glyphSize * (compact ? 0.62f : 0.8f);
+                    var pairSize = glyphSize * (compact ? 0.5f : 0.8f);
                     var offset = pairSize * 0.85f;
                     var center = new PointF(iconArea.X + iconArea.Width / 2, iconArea.Y + iconArea.Height / 2);
                     DrawGlyph(g, leftGlyph, center with { X = center.X - offset }, pairSize * GlyphFill, brush);
