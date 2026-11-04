@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using System.Text.Json;
 
 namespace WigiDash.DiscordWidget.Discord;
@@ -34,6 +35,20 @@ public enum VoiceMode
 /// <summary>Resultado de GET_VOICE_SETTINGS e do evento VOICE_SETTINGS_UPDATE.</summary>
 public sealed record VoiceSettings(bool Mute, bool Deaf, VoiceMode Mode, AudioIo Input, AudioIo Output)
 {
+    /// <summary>
+    /// O microfone está cortado: mutado, ou ensurdecido (no Discord, ensurdecer também muta, mesmo com
+    /// <see cref="Mute"/> falso).
+    /// </summary>
+    public bool MicMuted => Mute || Deaf;
+
+    /// <summary>
+    /// Argumentos para abrir ou cortar o microfone. Abrir com o áudio ensurdecido também tira o ensurdecer,
+    /// como o botão de microfone do próprio Discord.
+    /// </summary>
+    public JsonObject MicArgs(bool mute) => !mute && Deaf
+        ? new JsonObject { ["mute"] = false, ["deaf"] = false }
+        : new JsonObject { ["mute"] = mute };
+
     public static VoiceSettings Parse(JsonElement data)
     {
         var mode = data.TryGetProperty("mode", out var m) && m.TryGetProperty("type", out var type)

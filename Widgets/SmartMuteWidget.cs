@@ -34,7 +34,7 @@ public sealed class SmartMuteInstance(IWidgetContext context) : DiscordButtonIns
 
     protected override ButtonVisual GetVisual()
     {
-        var muted = Session.Voice?.Mute ?? false;
+        var muted = Session.Voice?.MicMuted ?? false;
         var glyph = muted ? Glyphs.MicrophoneOff : Glyphs.Microphone;
         if (_heldFrom is { } before)
         {
@@ -54,12 +54,12 @@ public sealed class SmartMuteInstance(IWidgetContext context) : DiscordButtonIns
         switch (touch.Kind)
         {
             case TouchKind.Tap when _heldFrom is null:
-                await Session.SetVoiceSettingsAsync(new JsonObject { ["mute"] = !voice.Mute }, cancellationToken).ConfigureAwait(false);
+                await Session.SetVoiceSettingsAsync(voice.MicArgs(!voice.MicMuted), cancellationToken).ConfigureAwait(false);
                 break;
             case TouchKind.LongPress when _heldFrom is null:
-                _heldFrom = voice.Mute;
+                _heldFrom = voice.MicMuted;
                 Refresh();
-                await Session.SetVoiceSettingsAsync(new JsonObject { ["mute"] = !voice.Mute }, cancellationToken).ConfigureAwait(false);
+                await Session.SetVoiceSettingsAsync(voice.MicArgs(!voice.MicMuted), cancellationToken).ConfigureAwait(false);
                 break;
             case TouchKind.PressEnded when _heldFrom is { } before:
                 _heldFrom = null;

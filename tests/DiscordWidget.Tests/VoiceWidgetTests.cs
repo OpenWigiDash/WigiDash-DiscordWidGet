@@ -87,6 +87,28 @@ public sealed class VoiceWidgetTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Ensurdecer_aparece_como_microfone_mutado_e_abrir_o_microfone_tira_o_ensurdecer()
+    {
+        await using var deafen = await CreateAsync<DeafenInstance>(new DeafenWidget());
+        await using var mute = await CreateAsync<MuteInstance>(new MuteWidget());
+        await using var smart = await CreateAsync<SmartMuteInstance>(new SmartMuteWidget());
+        Assert.Equal("Microfone ligado", mute.CurrentVisual().Label);
+
+        // Ensurdecer pelo widget (ou pelo Discord): os de microfone mostram mutado, mesmo com mute falso.
+        await Touch(deafen, TouchKind.Tap);
+        await FakeDiscord.WaitUntilAsync(() => mute.CurrentVisual().Label == "Mutado");
+        Assert.False(_voice.Mute);
+        Assert.Equal("Ensurdecido", mute.CurrentVisual().Detail);
+        Assert.Equal("Mutado", smart.CurrentVisual().Label);
+
+        // Abrir o microfone tira o ensurdecer, como no Discord.
+        await Touch(mute, TouchKind.Tap);
+        Assert.False(_voice.Deaf);
+        Assert.False(_voice.Mute);
+        await FakeDiscord.WaitUntilAsync(() => mute.CurrentVisual().Label == "Microfone ligado");
+    }
+
+    [Fact]
     public async Task Push_to_talk_abre_ao_encostar_e_muta_ao_soltar()
     {
         _voice.Mute = true;

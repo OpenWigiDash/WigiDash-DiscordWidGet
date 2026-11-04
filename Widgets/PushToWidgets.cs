@@ -54,11 +54,11 @@ public sealed class PushToInstance(IWidgetContext context, bool talk) : DiscordB
             return talk
                 ? new ButtonVisual(Glyphs.Microphone, "Falando") { Accent = ButtonRenderer.Success, GlyphBadge = Glyphs.Touch }
                 : new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Touch };
-        var muted = Session.Voice?.Mute ?? false;
+        var muted = Session.Voice?.MicMuted ?? false;
         return new ButtonVisual(Glyph, talk ? "Segure para falar" : "Segure para mutar")
         {
             GlyphBadge = Glyphs.Touch,
-            Detail = muted ? "Microfone mutado" : "Microfone ligado",
+            Detail = Session.Voice?.Deaf == true ? "Ensurdecido" : muted ? "Microfone mutado" : "Microfone ligado",
         };
     }
 
@@ -70,7 +70,9 @@ public sealed class PushToInstance(IWidgetContext context, bool talk) : DiscordB
                 _held = true;
                 _muteBefore = Session.Voice?.Mute ?? talk;
                 Refresh();
-                await Session.SetVoiceSettingsAsync(new JsonObject { ["mute"] = !talk }, cancellationToken).ConfigureAwait(false);
+                // Falar com o áudio ensurdecido tira o ensurdecer, como no Discord.
+                await Session.SetVoiceSettingsAsync(Session.Voice?.MicArgs(!talk) ?? new JsonObject { ["mute"] = !talk }, cancellationToken)
+                    .ConfigureAwait(false);
                 break;
             case TouchKind.PressEnded when _held:
                 _held = false;
