@@ -103,6 +103,17 @@ public sealed class PluginTests
                 new ButtonVisual(Glyphs.Ringer, "3  Ana") { Accent = ButtonRenderer.Success, Detail = "bora jogar?",
                     Lines = [new("Ana", "bora jogar?"), new("Bruno", "chegando em 5 min"), new("Caio", "alguém viu o patch novo?")] }),
             Path.Combine(output, "estado-notificacoes-large.png"));
+        var small = TileFrame.Default.ContentSize(WidgetSize.Small.CellSpan);
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Volume, "Voice 15") { Detail = "Canal vazio", ImageBadgeUrl = "test://logo" }),
+            Path.Combine(output, "estado-canal-vazio.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Headphone, "Outro dispositivo")
+                { Accent = ButtonRenderer.Info, Detail = "Toque para ir para A", DotCount = 2, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
+            Path.Combine(output, "estado-toggle-fora.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Headphone, "Headset")
+                { Accent = ButtonRenderer.Success, Detail = "A · toque para B", DotCount = 2, DotIndex = 0, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
+            Path.Combine(output, "estado-toggle-a.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.MicrophoneOff, "Mute") { Accent = ButtonRenderer.Danger, Detail = "Mutado" }),
+            Path.Combine(output, "estado-mutado.png"));
     }
 
     internal static void Save(WidgetFrame frame, string path)
