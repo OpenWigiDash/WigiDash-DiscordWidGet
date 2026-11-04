@@ -125,7 +125,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         // Fora da call: o canal é acompanhado (GET_CHANNEL + VOICE_STATE_* do c1) e mostra quem está lá.
         await FakeDiscord.WaitUntilAsync(() => widget.CurrentVisual().Badge == 2);
-        Assert.Equal(ButtonRenderer.DiscordBlurple, widget.CurrentVisual().Accent);
+        Assert.Null(widget.CurrentVisual().Accent);
         Assert.Equal(["Amigo", "tester"], widget.CurrentVisual().Faces!.Select(f => f.Name));
         Assert.EndsWith("/embed/avatars/" + ((2UL >> 22) % 6) + ".png", widget.CurrentVisual().Faces![0].Url);
 
@@ -232,7 +232,7 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
 
         // Fora das duas: azul, nenhuma bolinha cheia; o toque vai para A.
         var visual = widget.CurrentVisual();
-        Assert.Null(visual.Accent);
+        Assert.Equal(ButtonRenderer.Info, visual.Accent);
         Assert.Equal(-1, visual.DotIndex);
         Assert.Equal(2, visual.CornerGlyphs!.Count);
 

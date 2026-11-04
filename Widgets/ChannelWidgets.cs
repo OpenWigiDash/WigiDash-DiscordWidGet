@@ -1,3 +1,4 @@
+using System.Drawing;
 using System.Text.Json.Nodes;
 using OpenWigi.Sdk;
 using WigiDash.DiscordWidget.Discord;
@@ -105,7 +106,7 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
         var users = info?.Users ?? [];
         var joined = IsInChannel;
         WatchArrivals(info is null ? -1 : users.Count, joined);
-        var accent = joined ? ButtonRenderer.Success : ButtonRenderer.DiscordBlurple;
+        Color? accent = joined ? ButtonRenderer.Success : null;
         // Vazio: o ícone de canal de voz do Discord, com o logo do servidor no canto.
         if (users.Count == 0)
             return new ButtonVisual(Glyph, name) { Accent = accent, Detail = "Canal vazio", ImageBadgeUrl = GuildIconUrl(Options.GuildId) };
@@ -113,7 +114,7 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
         // Alguém entrou e você não está: pisca mais claro por uns segundos para chamar a atenção.
         var now = Context.Host.Time.GetUtcNow();
         if (!joined && now < _pulseUntil && (now - (_pulseUntil - JoinPulse)) / PulseFrame % 2 < 1)
-            accent = ButtonRenderer.Lighter(ButtonRenderer.DiscordBlurple);
+            accent = ButtonRenderer.Lighter(ButtonRenderer.Idle);
         // Mini: não cabem avatares; fica o botão de entrar com o contador.
         if (Context.PixelSize.Height < 100)
             return new ButtonVisual(Glyph, name) { Accent = accent, Badge = users.Count, BadgeGlyph = Glyph };

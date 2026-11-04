@@ -103,9 +103,10 @@ public sealed class AudioToggleInstance(IWidgetContext context) : DiscordOptions
         var index = CurrentIndex(Session.Voice);
         if (index < 0)
         {
-            // Alguém trocou o dispositivo por fora: azul do Discord, sem bolinha marcada; o toque vai para A.
+            // Alguém trocou o dispositivo por fora: azul, sem bolinha marcada; o toque vai para A.
             return new ButtonVisual(Glyph, "Outro dispositivo")
             {
+                Accent = ButtonRenderer.Info,
                 Detail = "Toque para ir para A",
                 DotCount = 2,
                 DotIndex = -1,

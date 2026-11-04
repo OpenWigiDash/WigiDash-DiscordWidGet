@@ -13,7 +13,7 @@ namespace WigiDash.DiscordWidget.Rendering;
 /// </summary>
 public sealed record ButtonVisual(string Glyph, string Label)
 {
-    /// <summary>Cor de fundo do estado (verde ativo, vermelho mutado). <c>null</c> = azul do Discord.</summary>
+    /// <summary>Cor de fundo do estado (verde ativo, vermelho mutado). <c>null</c> = cinza escuro de ocioso.</summary>
     public Color? Accent { get; init; }
 
     /// <summary>Segunda linha, menor (ex.: nome do canal, volume).</summary>
@@ -86,6 +86,12 @@ public sealed record AvatarFace(string? Url, string Name, bool Speaking);
 public static class ButtonRenderer
 {
     public static readonly Color DiscordBlurple = Color.FromArgb(88, 101, 242);
+
+    /// <summary>Fundo de ocioso: o cinza escuro do Discord, para o símbolo roxo aparecer.</summary>
+    public static readonly Color Idle = Color.FromArgb(43, 45, 49);
+
+    /// <summary>Azul de "fora das opções" (ex.: dispositivo trocado por fora do toggle).</summary>
+    public static readonly Color Info = Color.FromArgb(0, 120, 212);
     public static readonly Color Danger = Color.FromArgb(218, 55, 60);
     public static readonly Color Success = Color.FromArgb(35, 165, 90);
 
@@ -98,16 +104,19 @@ public static class ButtonRenderer
         {
             g.SmoothingMode = SmoothingMode.AntiAlias;
             g.TextRenderingHint = TextRenderingHint.AntiAliasGridFit;
-            // Padrão visual das imagens do plugin da Elgato: fundo azul do Discord; verde quando a ação está
-            // ativa e vermelho quando algo está cortado (mutado, ensurdecido) vêm em Accent.
-            var background = visual.Accent ?? DiscordBlurple;
+            // Fundo do estado: cinza escuro de ocioso, verde quando a ação está ativa e vermelho quando algo
+            // está cortado (mutado, ensurdecido), vindos em Accent. Por cima, o símbolo do Discord em roxo.
+            var background = visual.Accent ?? Idle;
+            var logo = DiscordBlurple;
             var foreground = ToColor(theme.PrimaryForeground);
             if (visual.Dimmed)
             {
                 background = Blend(background, Color.Black, 0.5);
+                logo = Blend(logo, Color.Black, 0.5);
                 foreground = Blend(foreground, background, 0.5);
             }
             g.Clear(background);
+            DrawLogo(g, size, logo);
 
             // Mini (meia célula): só ícone e rótulo curto, sem a segunda linha.
             var compact = size.Height < 100;
@@ -417,6 +426,46 @@ public static class ButtonRenderer
         using var brush = new SolidBrush(foreground);
         // O "−" e o "+" da fonte ficam um pouco abaixo do centro; sobe 6% para centralizar no círculo.
         g.DrawString(symbol, font, brush, rect with { Y = rect.Y - rect.Height * 0.06f }, Centered);
+    }
+
+    private static readonly Lazy<Bitmap> LogoMask = new(LoadLogoMask);
+
+    /// <summary>
+    /// Símbolo do Discord (branco sobre preto, 512 px) como máscara: o brilho vira transparência, para pintar
+    /// em qualquer cor.
+    /// </summary>
+    private static Bitmap LoadLogoMask()
+    {
+        using var stream = typeof(ButtonRenderer).Assembly.GetManifestResourceStream("WigiDash.DiscordWidget.Rendering.discord-logo-mask.png")!;
+        using var source = new Bitmap(stream);
+        var mask = new Bitmap(source.Width, source.Height, PixelFormat.Format32bppArgb);
+        for (var y = 0; y < source.Height; y++)
+            for (var x = 0; x < source.Width; x++)
+                mask.SetPixel(x, y, Color.FromArgb(source.GetPixel(x, y).R, 255, 255, 255));
+        return mask;
+    }
+
+    /// <summary>
+    /// Símbolo grande no canto inferior direito, saindo do tile (variante B escolhida pelo Victor), na cor
+    /// <paramref name="color"/>.
+    /// </summary>
+    private static void DrawLogo(Graphics g, PixelSize size, Color color)
+    {
+        var side = size.Height * 1.25f;
+        var rect = new RectangleF(size.Width - side * 0.64f, size.Height - side * 0.7f, side, side);
+        var mask = LogoMask.Value;
+        using var attributes = new ImageAttributes();
+        attributes.SetColorMatrix(new ColorMatrix(
+        [
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0],
+            [0, 0, 0, 1, 0],
+            [color.R / 255f, color.G / 255f, color.B / 255f, 0, 1],
+        ]));
+        g.InterpolationMode = InterpolationMode.HighQualityBicubic;
+        lock (mask)
+            g.DrawImage(mask, Rectangle.Round(rect), 0, 0, mask.Width, mask.Height, GraphicsUnit.Pixel, attributes);
     }
 
     /// <summary>Pílula com ícones pequenos no canto superior direito, no lugar do contador.</summary>
