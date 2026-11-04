@@ -134,7 +134,8 @@ public static class ButtonRenderer
             var labelHeight = compact ? Math.Max(12, size.Height / 5) : Math.Clamp(size.Height / 7, 16, 24);
             // No Mini, a barra de nível precisa de espaço próprio embaixo do rótulo.
             var textBlock = labelHeight + (hasDetail ? labelHeight * 4 / 5 : 0) + (compact ? (visual.Level is null ? 4 : 9) : 8);
-            var top = compact ? 3 : 6;
+            // Com as bolinhas do carrossel em cima, o ícone começa embaixo delas.
+            var top = visual.DotCount is null ? (compact ? 3 : 6) : (compact ? 12 : 17);
             var iconArea = new RectangleF(0, top, size.Width, size.Height - textBlock - top);
 
             // Tile alto (Large) tem espaço para o nome embaixo de cada avatar e para a lista.
@@ -175,7 +176,7 @@ public static class ButtonRenderer
                 {
                     // Os dois ícones um pouco menores, afastados do centro, e o do meio (as setas) bem menor.
                     // No Mini, menores para não encostar no selo do canto.
-                    var pairSize = glyphSize * (compact ? 0.5f : 0.8f);
+                    var pairSize = glyphSize * (compact ? 0.62f : 0.8f);
                     var offset = pairSize * 0.85f;
                     var center = new PointF(iconArea.X + iconArea.Width / 2, iconArea.Y + iconArea.Height / 2);
                     DrawGlyph(g, leftGlyph, center with { X = center.X - offset }, pairSize * GlyphFill, brush);

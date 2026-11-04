@@ -112,6 +112,9 @@ public sealed class PluginTests
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Headphone, "Headset")
                 { Accent = ButtonRenderer.Success, Detail = "A · toque para B", DotCount = 2, DotIndex = 0, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
             Path.Combine(output, "estado-toggle-a.png"));
+        Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Mini.CellSpan), theme, new ButtonVisual(WidgetIcons.Find("headset")!.Glyph, "HeadSet")
+                { Accent = ButtonRenderer.Success, DotCount = 2, DotIndex = 0, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
+            Path.Combine(output, "estado-toggle-mini.png"));
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.MicrophoneOff, "Mute") { Accent = ButtonRenderer.Danger, Detail = "Mutado" }),
             Path.Combine(output, "estado-mutado.png"));
     }
