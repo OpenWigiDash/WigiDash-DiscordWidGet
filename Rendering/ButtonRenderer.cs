@@ -225,7 +225,7 @@ public static class ButtonRenderer
         {
             for (var cols = 1; cols <= 10; cols++)
             {
-                var d = Math.Min(Math.Min(area.Width * 0.96f / (1 + Step(names) * (cols - 1)), (area.Height / rows - label) * 0.86f), 96);
+                var d = Math.Min(Math.Min(area.Width * 0.96f / (1 + Step(names) * (cols - 1)), names ? (area.Height / rows - label) * 0.86f : area.Height * 0.96f / (1 + RowStep * (rows - 1))), 96);
                 if (d < minD)
                     continue;
                 var grid = new FaceGrid(rows, cols, d);
@@ -241,6 +241,9 @@ public static class ButtonRenderer
     /// nome embaixo, lado a lado para o nome caber.
     /// </summary>
     private static float Step(bool names) => names ? 1.2f : 0.82f;
+
+    /// <summary>Distância entre fileiras sem nome, em diâmetros: as fileiras também se sobrepõem um pouco.</summary>
+    private const float RowStep = 0.84f;
 
     /// <summary>Cabe todo mundo vence; entre os que cabem, avatar maior e menos lugares sobrando; senão, mais lugares.</summary>
     private static bool Better(FaceGrid grid, FaceGrid best, int count)
@@ -268,8 +271,9 @@ public static class ButtonRenderer
         var label = names ? 18f : 0;
         var d = grid.Diameter;
         var step = d * Step(names);
-        var cellH = Math.Min(area.Height / grid.Rows, d * 1.12f + label);
-        var y0 = area.Y + (area.Height - cellH * usedRows) / 2;
+        var rowStep = names ? Math.Min(area.Height / grid.Rows, d * 1.12f + label) : d * RowStep;
+        var totalHeight = names ? rowStep * usedRows : d + rowStep * (usedRows - 1);
+        var y0 = area.Y + (area.Height - totalHeight) / 2;
         var ring = Math.Max(2.5f, d / 18);
         using var nameFont = names ? new Font("Segoe UI", 12.5f, GraphicsUnit.Pixel) : null;
         using var nameBrush = new SolidBrush(Blend(foreground, background, 0.15));
@@ -280,7 +284,7 @@ public static class ButtonRenderer
             var inRow = Math.Min(grid.Columns, slots - row * grid.Columns);
             var rowWidth = d + step * (inRow - 1);
             var cx = area.X + (area.Width - rowWidth) / 2 + d / 2 + step * (i % grid.Columns);
-            var cy = y0 + cellH * row + (cellH - label) / 2;
+            var cy = names ? y0 + rowStep * row + (rowStep - label) / 2 : y0 + d / 2 + rowStep * row;
             var rect = new RectangleF(cx - d / 2, cy - d / 2, d, d);
 
             // Borda da cor do fundo separa cada avatar do que ele cobre.
