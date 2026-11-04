@@ -213,14 +213,15 @@ public sealed class UserVolumeWidget : DiscordWidgetBase
         "Discord: User Volume Control",
         "Ajusta o volume ou muta, só para você, uma pessoa que está na call.");
 
-    protected override ButtonVisual Preview => new(Glyphs.People, "User Volume") { Level = 0.5 };
+    protected override ButtonVisual Preview => new(Glyphs.Person, "User Volume") { Level = 0.5, GlyphAccent = Glyphs.Volume };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new UserVolumeInstance(context);
 }
 
 public sealed class UserVolumeInstance(IWidgetContext context) : DiscordOptionsInstance<UserVolumeOptions>(context)
 {
-    protected override string Glyph => Glyphs.People;
+    protected override string Glyph => Glyphs.Person;
+    protected override string GlyphAccent => Glyphs.Volume;
     protected override string Label => "User Volume";
 
     public override Type? OptionsComponent => typeof(UserVolumeOptionsPanel);
@@ -230,9 +231,9 @@ public sealed class UserVolumeInstance(IWidgetContext context) : DiscordOptionsI
     protected override ButtonVisual GetVisual()
     {
         if (Options.UserId is null)
-            return new ButtonVisual(Glyph, Label) { Detail = "Escolha a pessoa", Dimmed = true };
+            return new ButtonVisual(Glyph, Label) { Detail = "Escolha a pessoa", Dimmed = true, GlyphAccent = GlyphAccent };
         if (User is not { } user)
-            return new ButtonVisual(Glyph, Options.UserName ?? Label) { Detail = "Fora da call", Dimmed = true };
+            return new ButtonVisual(Glyph, Options.UserName ?? Label) { Detail = "Fora da call", Dimmed = true, GlyphAccent = GlyphAccent };
         if (user.LocallyMuted)
             return new ButtonVisual(Glyphs.Mute, user.Name) { Accent = ButtonRenderer.Danger, Detail = "Mutado para você" };
         return new ButtonVisual(Glyph, user.Name)

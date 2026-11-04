@@ -26,14 +26,17 @@ public sealed class MuteInstance(IWidgetContext context) : DiscordButtonInstance
     protected override string Glyph => Glyphs.Microphone;
     protected override string Label => "Mute";
 
-    protected override ButtonVisual GetVisual() => Session.Voice is { Mute: true }
-        ? new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger }
-        : new ButtonVisual(Glyphs.Microphone, "Microfone ligado");
+    protected override ButtonVisual GetVisual() => Session.Voice switch
+    {
+        { Deaf: true } => new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger, Detail = "Ensurdecido" },
+        { Mute: true } => new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger },
+        _ => new ButtonVisual(Glyphs.Microphone, "Microfone ligado"),
+    };
 
     protected override async Task OnReadyTouchAsync(TouchEvent touch, CancellationToken cancellationToken)
     {
         if (touch.Kind != TouchKind.Tap || Session.Voice is not { } voice)
             return;
-        await Session.SetVoiceSettingsAsync(new JsonObject { ["mute"] = !voice.Mute }, cancellationToken).ConfigureAwait(false);
+        await Session.SetVoiceSettingsAsync(voice.MicArgs(!voice.MicMuted), cancellationToken).ConfigureAwait(false);
     }
 }

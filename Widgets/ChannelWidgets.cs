@@ -29,7 +29,8 @@ public sealed class VoiceChannelWidget : DiscordWidgetBase
         "Toque entra no canal de voz escolhido; tocar de novo sai da call. Fica verde enquanto você está nele.",
         iconButton: true, large: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Volume, "Voice Channel");
+    // Alto-falante de canal de voz com as pessoas no canto (opção B escolhida pelo Victor).
+    protected override ButtonVisual Preview => new(Glyphs.Volume, "Voice Channel") { GlyphAccent = Glyphs.People };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new ChannelInstance(context, voice: true);
 }
@@ -54,6 +55,7 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
 
     protected override string Glyph => IsVoice ? Glyphs.Volume : Glyphs.Message;
     protected override string Label => IsVoice ? "Voice Channel" : "Text Channel";
+    protected override string? GlyphAccent => IsVoice ? Glyphs.People : null;
 
     public override Type? OptionsComponent => typeof(ChannelOptionsPanel);
 
@@ -94,10 +96,11 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
     protected override ButtonVisual GetVisual()
     {
         if (Options.ChannelId is not { } channelId)
-            return new ButtonVisual(Glyph, Label) { Detail = "Escolha o canal", Dimmed = true };
+            return new ButtonVisual(Glyph, Label) { Detail = "Escolha o canal", Dimmed = true, GlyphAccent = GlyphAccent };
 
         if (!IsVoice)
-            return new ButtonVisual(Glyph, "#" + Options.ChannelName) { Detail = Options.GuildName };
+            // Logo do servidor no canto do ícone: no canvas não dá para saber de qual servidor é o canal.
+            return new ButtonVisual(Glyph, "#" + Options.ChannelName) { Detail = Options.GuildName, ImageBadgeUrl = GuildIconUrl(Options.GuildId) };
 
         // Mesmo padrão das imagens do plugin da Elgato: fundo azul do Discord fora da call e verde dentro,
         // avatares de quem está no canal, contador no canto e anel de quem está falando. Vazio, o logo do servidor.
@@ -117,7 +120,7 @@ public sealed class ChannelInstance(IWidgetContext context, bool voice) : Discor
             accent = ButtonRenderer.Lighter(ButtonRenderer.Idle);
         // Mini: não cabem avatares; fica o botão de entrar com o contador.
         if (Context.PixelSize.Height < 100)
-            return new ButtonVisual(Glyph, name) { Accent = accent, Badge = users.Count, BadgeGlyph = Glyph };
+            return new ButtonVisual(Glyph, name) { Accent = accent, Badge = users.Count, BadgeGlyph = Glyph, GlyphAccent = GlyphAccent };
         return new ButtonVisual(Glyph, name)
         {
             Accent = accent,

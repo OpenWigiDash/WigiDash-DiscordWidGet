@@ -19,7 +19,7 @@ public sealed class SmartMuteWidget : DiscordWidgetBase
         "Toque alterna o mute. Segurar inverte só enquanto o dedo está na tela: falando, segurar muta; mutado, segurar abre o microfone.",
         iconButton: true);
 
-    protected override ButtonVisual Preview => new(Glyphs.Microphone, "Mute inteligente") { GlyphBadge = Glyphs.Touch };
+    protected override ButtonVisual Preview => new(Glyphs.Microphone, "Mute inteligente") { GlyphBadge = Glyphs.Hand, BadgeHold = true };
 
     protected override DiscordButtonInstance CreateInstance(IWidgetContext context) => new SmartMuteInstance(context);
 }
@@ -34,17 +34,17 @@ public sealed class SmartMuteInstance(IWidgetContext context) : DiscordButtonIns
 
     protected override ButtonVisual GetVisual()
     {
-        var muted = Session.Voice?.Mute ?? false;
+        var muted = Session.Voice?.MicMuted ?? false;
         var glyph = muted ? Glyphs.MicrophoneOff : Glyphs.Microphone;
         if (_heldFrom is { } before)
         {
             return before
-                ? new ButtonVisual(Glyphs.Microphone, "Falando") { Accent = ButtonRenderer.Success, GlyphBadge = Glyphs.Touch, Detail = "Solte para mutar" }
-                : new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Touch, Detail = "Solte para falar" };
+                ? new ButtonVisual(Glyphs.Microphone, "Falando") { Accent = ButtonRenderer.Success, GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Solte para mutar" }
+                : new ButtonVisual(Glyphs.MicrophoneOff, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Solte para falar" };
         }
         return muted
-            ? new ButtonVisual(glyph, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Touch, Detail = "Segure para falar" }
-            : new ButtonVisual(glyph, "Microfone ligado") { GlyphBadge = Glyphs.Touch, Detail = "Segure para mutar" };
+            ? new ButtonVisual(glyph, "Mutado") { Accent = ButtonRenderer.Danger, GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Segure para falar" }
+            : new ButtonVisual(glyph, "Microfone ligado") { GlyphBadge = Glyphs.Hand, BadgeHold = true, Detail = "Segure para mutar" };
     }
 
     protected override async Task OnReadyTouchAsync(TouchEvent touch, CancellationToken cancellationToken)
@@ -54,12 +54,12 @@ public sealed class SmartMuteInstance(IWidgetContext context) : DiscordButtonIns
         switch (touch.Kind)
         {
             case TouchKind.Tap when _heldFrom is null:
-                await Session.SetVoiceSettingsAsync(new JsonObject { ["mute"] = !voice.Mute }, cancellationToken).ConfigureAwait(false);
+                await Session.SetVoiceSettingsAsync(voice.MicArgs(!voice.MicMuted), cancellationToken).ConfigureAwait(false);
                 break;
             case TouchKind.LongPress when _heldFrom is null:
-                _heldFrom = voice.Mute;
+                _heldFrom = voice.MicMuted;
                 Refresh();
-                await Session.SetVoiceSettingsAsync(new JsonObject { ["mute"] = !voice.Mute }, cancellationToken).ConfigureAwait(false);
+                await Session.SetVoiceSettingsAsync(voice.MicArgs(!voice.MicMuted), cancellationToken).ConfigureAwait(false);
                 break;
             case TouchKind.PressEnded when _heldFrom is { } before:
                 _heldFrom = null;

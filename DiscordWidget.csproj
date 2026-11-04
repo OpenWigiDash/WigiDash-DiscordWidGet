@@ -21,7 +21,7 @@
     <OpenWigiDashPlugin>true</OpenWigiDashPlugin>
     <PackageId>OpenWigiDash.Discord</PackageId>
     <Title>Discord</Title>
-    <Version>3.1.0-preview.1</Version>
+    <Version>3.1.1-preview.1</Version>
     <PackageTags>discord</PackageTags>
     <PackageProjectUrl>https://github.com/OpenWigiDash/WigiDash-DiscordWidGet</PackageProjectUrl>
     <RepositoryUrl>https://github.com/OpenWigiDash/WigiDash-DiscordWidGet</RepositoryUrl>

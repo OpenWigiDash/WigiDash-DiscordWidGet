@@ -115,6 +115,15 @@ public sealed class PluginTests
         Save(ButtonRenderer.Render(TileFrame.Default.ContentSize(WidgetSize.Mini.CellSpan), theme, new ButtonVisual(WidgetIcons.Find("headset")!.Glyph, "HeadSet")
                 { Accent = ButtonRenderer.Success, DotCount = 2, DotIndex = 0, CornerGlyphs = [Glyphs.Microphone, Glyphs.Speakers] }),
             Path.Combine(output, "estado-toggle-mini.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Server, "312 online")
+                { ImageUrl = "test://logo", GlyphBadge = Glyphs.Server, Detail = "1.204 membros · Jogos" }),
+            Path.Combine(output, "estado-server-logo.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.Message, "#geral") { Detail = "Jogos", ImageBadgeUrl = "test://logo" }),
+            Path.Combine(output, "estado-texto.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.StreamArrow, "Transmitindo") { OnScreen = true, Accent = ButtonRenderer.Success }),
+            Path.Combine(output, "estado-stream-on.png"));
+        Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.StreamArrow, "Sem transmissão") { OnScreen = true, Slashed = true }),
+            Path.Combine(output, "estado-stream-off.png"));
         Save(ButtonRenderer.Render(small, theme, new ButtonVisual(Glyphs.MicrophoneOff, "Mute") { Accent = ButtonRenderer.Danger, Detail = "Mutado" }),
             Path.Combine(output, "estado-mutado.png"));
     }

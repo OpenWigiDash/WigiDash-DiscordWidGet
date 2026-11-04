@@ -16,6 +16,23 @@ public static class Glyphs
     public const string Share = "";
     public const string Message = "";
     public const string People = "";
+
+    /// <summary>Uma pessoa só (o "Contact").</summary>
+    public const string Person = "";
+
+    /// <summary>Casa: o servidor do Discord, como no ícone de Server Stats da Elgato.</summary>
+    public const string Server = "";
+
+    public const string Info = "";
+
+    /// <summary>Seta curva para a direita: desenhada dentro do monitor no ícone de transmissão.</summary>
+    /// <summary>Pessoa falando (contorno), para os widgets de falar.</summary>
+    public const string Speaking = "";
+
+    /// <summary>Mão tocando, sem o cursor.</summary>
+    public const string Hand = "";
+
+    public const string StreamArrow = "";
     public const string Ringer = "";
     public const string Speakers = "";
     public const string Switch = "";
@@ -23,5 +40,5 @@ public static class Glyphs
     public const string Phone = "";
     public const string HangUp = "";
     /// <summary>Mão de toque (TouchPointer): o "aperte e segure" do Push to Talk/Mute.</summary>
-    public const string Touch = "";
+    public const string Touch = Hand;
 }
