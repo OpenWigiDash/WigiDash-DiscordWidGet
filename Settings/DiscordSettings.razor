@@ -1,10 +1,37 @@
 @inherits WidgetSettingsComponent<DiscordButtonInstance>
 @implements IDisposable
 
-@* Tela de configurações de todos os widgets do Discord: conta (comum a todos) e, se o widget tiver,
-   as opções dele. *@
+@* Tela de configurações de todos os widgets do Discord. A conta é do plugin inteiro e fica na página do plugin;
+   aqui só o estado dela, com o caminho para lá quando falta algo, e as opções do widget, se ele tiver. *@
 <MudStack Spacing="4">
-    <AccountPanel Session="Instance.Session" />
+    @if (Instance.Session.State is DiscordState.Ready)
+    {
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudIcon Icon="@Icons.Material.Filled.Circle" Color="Color.Success" Size="Size.Small" />
+            <MudText Typo="Typo.body2">@AccountStatus.Text(Instance.Session)</MudText>
+        </MudStack>
+    }
+    else
+    {
+        <MudAlert Severity="@AccountStatus.StateSeverity(Instance.Session)" Dense="true" Variant="Variant.Outlined">
+            <MudText Typo="Typo.body2">@AccountStatus.Text(Instance.Session)</MudText>
+            @if (!string.IsNullOrEmpty(Instance.Session.Message))
+            {
+                <MudText Typo="Typo.caption" Style="display:block">@Instance.Session.Message</MudText>
+            }
+            <MudText Typo="Typo.caption" Style="display:block" Class="mt-1">
+                A conta do Discord e o Client ID valem para todos os widgets do Discord e ficam na página do plugin.
+            </MudText>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" Class="mt-2"
+                       StartIcon="@Icons.Material.Filled.Settings" OnClick="OpenPluginSettings">Configurar a conta</MudButton>
+            @if (_noPluginPage)
+            {
+                <MudText Typo="Typo.caption" Style="display:block" Class="mt-1">
+                    Abra Loja de plugins, aba Instalados, e clique em Configurar no Discord.
+                </MudText>
+            }
+        </MudAlert>
+    }
 
     @if (Instance.OptionsComponent is { } options)
     {
@@ -16,7 +43,12 @@
 </MudStack>
 
 @code {
+    private bool _noPluginPage;
+
     protected override void OnInitialized() => Instance.Changed += OnChanged;
+
+    // O manager abre a página do plugin na aba Configurações. Se não abriu, diz onde fica.
+    private async Task OpenPluginSettings() => _noPluginPage = !await Context.OpenPluginSettingsAsync();
 
     private void OnChanged() => InvokeAsync(StateHasChanged);
 

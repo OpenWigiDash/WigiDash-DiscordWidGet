@@ -1,6 +1,6 @@
 @implements IDisposable
 
-@* Conta do Discord, a mesma para todos os widgets do plugin. *@
+@* Conta do Discord, a mesma para todos os widgets do plugin. Fica na página do plugin (DiscordPluginSettings). *@
 <div>
     <MudText Typo="Typo.overline" Color="Color.Secondary">Conta do Discord</MudText>
 
@@ -54,23 +54,9 @@
 
     private string _clientId = string.Empty;
 
-    private string StateText => Session.State switch
-    {
-        DiscordState.Ready => $"Conectado como {Session.UserName}",
-        DiscordState.DiscordNotRunning => "O Discord não está aberto neste PC",
-        DiscordState.NeedsAuthorization => $"Discord aberto ({Session.UserName}), falta autorizar",
-        DiscordState.Authorizing => "Clique em Autorizar na janela do Discord",
-        DiscordState.Failed => "Erro na conexão; tentando de novo",
-        DiscordState.Stopped => "Parado",
-        _ => "Conectando...",
-    };
+    private string StateText => AccountStatus.Text(Session);
 
-    private Color StateColor => Session.State switch
-    {
-        DiscordState.Ready => Color.Success,
-        DiscordState.Connecting or DiscordState.Authorizing => Color.Info,
-        _ => Color.Warning,
-    };
+    private Color StateColor => AccountStatus.StateColor(Session);
 
     protected override void OnInitialized()
     {
