@@ -27,6 +27,15 @@ public sealed class PluginTests
     }
 
     [Fact]
+    public void Conta_fica_na_pagina_do_plugin()
+    {
+        var attribute = Plugin.GetCustomAttribute<OpenWigiPluginSettingsAttribute>();
+        Assert.NotNull(attribute);
+        Assert.Equal("DiscordPluginSettings", attribute.ComponentType.Name);
+        Assert.True(typeof(PluginSettingsComponent).IsAssignableFrom(attribute.ComponentType));
+    }
+
+    [Fact]
     public void Mini_so_nos_botoes_de_icone()
     {
         string[] iconButtons =

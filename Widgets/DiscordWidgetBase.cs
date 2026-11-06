@@ -4,6 +4,9 @@ using WigiDash.DiscordWidget.Discord;
 using WigiDash.DiscordWidget.Rendering;
 using WigiDash.DiscordWidget.Settings;
 
+// Conta e app do Developer Portal: uma vez só, na página do plugin no manager.
+[assembly: OpenWigiPluginSettings(typeof(DiscordPluginSettings))]
+
 namespace WigiDash.DiscordWidget.Widgets;
 
 /// <summary>

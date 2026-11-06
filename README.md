@@ -50,9 +50,12 @@ só são liberados para o dono do app e para quem está no time dele.
 
 1. Crie um app (ou use um que já seja seu).
 2. Na aba **OAuth2**, ligue **Public Client** e salve.
-3. No WigiDash, abra as configurações de qualquer widget do Discord, expanda **App do Developer Portal** e cole
-   o Client ID.
+3. No OpenWigiDash, abra **Loja de plugins > Instalados > Discord > Configurar** (ou o botão **Configurar a conta**
+   na tela de qualquer widget do Discord), expanda **App do Developer Portal** e cole o Client ID.
 4. Clique em **Autorizar no Discord** (ou toque no widget) e confirme no popup.
+
+A conta vale para todos os widgets do Discord: fica uma vez só na página do plugin, e a tela de cada widget só
+mostra o estado dela e avisa quando falta configurar.
 
 ## Requisitos
 
