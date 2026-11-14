@@ -11,6 +11,7 @@
         <MudSelectItem Value="AudioSide.Output">Só a saída</MudSelectItem>
         <MudSelectItem Value="AudioSide.Both">Entrada e saída</MudSelectItem>
     </MudSelect>
+    <DeviceMatchingSelect Value="Instance.Options.Matching" ValueChanged="v => Save(Instance.Options with { Matching = v })" />
 
     @foreach (var (name, combo, isA) in new[] { ("A", Instance.Options.A, true), ("B", Instance.Options.B, false) })
     {
@@ -25,23 +26,15 @@
                       Label="Título" Placeholder="Nome do dispositivo" Variant="Variant.Outlined" Style="max-width: 320px" />
         @if (Instance.Options.Side != AudioSide.Output)
         {
-            <MudSelect T="string" Value="combo.InputId" ValueChanged="id => SelectInput(isA, id)" Label="Entrada"
-                       Variant="Variant.Outlined" Disabled="@(Voice is null)" Style="min-width: 320px">
-                @foreach (var device in Voice?.Input.Devices ?? [])
-                {
-                    <MudSelectItem Value="@device.Id">@device.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <AudioDevicePicker Label="Entrada" Io="Voice?.Input" SavedId="@combo.InputId" SavedName="@combo.InputName"
+                               Matching="Instance.Options.Matching" Disabled="@(Voice is null)"
+                               OnSelected="id => SelectInput(isA, id)" />
         }
         @if (Instance.Options.Side != AudioSide.Input)
         {
-            <MudSelect T="string" Value="combo.OutputId" ValueChanged="id => SelectOutput(isA, id)" Label="Saída"
-                       Variant="Variant.Outlined" Disabled="@(Voice is null)" Style="min-width: 320px">
-                @foreach (var device in Voice?.Output.Devices ?? [])
-                {
-                    <MudSelectItem Value="@device.Id">@device.Name</MudSelectItem>
-                }
-            </MudSelect>
+            <AudioDevicePicker Label="Saída" Io="Voice?.Output" SavedId="@combo.OutputId" SavedName="@combo.OutputName"
+                               Matching="Instance.Options.Matching" Disabled="@(Voice is null)"
+                               OnSelected="id => SelectOutput(isA, id)" />
         }
     }
 

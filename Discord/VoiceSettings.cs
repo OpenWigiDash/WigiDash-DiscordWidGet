@@ -1,7 +1,17 @@
 using System.Text.Json.Nodes;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace WigiDash.DiscordWidget.Discord;
+
+/// <summary>Como reconhecer o dispositivo salvo num widget na lista do Discord.</summary>
+public enum DeviceMatching
+{
+    /// <summary>Pelo id e, se ele mudou, pelo nome sem o prefixo "2- " que o Windows põe quando o dongle troca de porta.</summary>
+    Fuzzy,
+    /// <summary>Só pelo id do Windows.</summary>
+    Exact,
+}
 
 /// <summary>Dispositivo de áudio como o Discord lista em <c>available_devices</c>.</summary>
 public sealed record AudioDevice(string Id, string Name);
@@ -23,6 +33,37 @@ public sealed record AudioIo(string DeviceId, double Volume, IReadOnlyList<Audio
             element.TryGetProperty("volume", out var volume) && volume.ValueKind == JsonValueKind.Number ? volume.GetDouble() : 0,
             devices);
     }
+
+    /// <summary>
+    /// O dispositivo guardado num widget, na lista atual do Discord. Procura pelo id e, no <see cref="DeviceMatching.Fuzzy"/>,
+    /// pelo nome se o id sumiu: o Windows troca o id do endpoint quando recria o dispositivo (dongle em outra porta USB,
+    /// driver reinstalado) e põe ou tira o "2- " do nome ("Microfone do Headset (2- JBL Quantum 800 Chat)" vira
+    /// "Microfone do Headset (JBL Quantum 800 Chat)"). <c>null</c> quando não acha (desligado ou removido).
+    /// Mesma regra do "Reconhecer o dispositivo" do Audio Device do plugin System.
+    /// </summary>
+    public AudioDevice? Find(string? id, string? name, DeviceMatching matching = DeviceMatching.Fuzzy)
+    {
+        if (!string.IsNullOrEmpty(id) && Devices.FirstOrDefault(d => string.Equals(d.Id, id, StringComparison.OrdinalIgnoreCase)) is { } byId)
+            return byId;
+        if (matching == DeviceMatching.Exact || string.IsNullOrWhiteSpace(name))
+            return null;
+        var normalized = NormalizeName(name);
+        return Devices.FirstOrDefault(d => string.Equals(d.Name, name, StringComparison.OrdinalIgnoreCase))
+               ?? Devices.FirstOrDefault(d => NormalizeName(d.Name) == normalized);
+    }
+
+    /// <summary>O id a mandar ao Discord: o do dispositivo achado (<see cref="Find"/>), ou o guardado se não achou.</summary>
+    public string? ResolveId(string? id, string? name, DeviceMatching matching = DeviceMatching.Fuzzy) =>
+        Find(id, name, matching)?.Id ?? id;
+
+    // "(2- JBL Quantum 800)", "2- Alto-falantes": o número que o Windows põe quando cria outro endpoint igual.
+    private static readonly Regex Counter = new(@"(^|\()\s*\d+\s*-\s*", RegexOptions.CultureInvariant);
+    private static readonly Regex Spaces = new(@"\s+", RegexOptions.CultureInvariant);
+
+    /// <summary>Nome sem o "N- " do Windows, sem espaços repetidos e em minúsculas.</summary>
+    public static string NormalizeName(string? name) => string.IsNullOrWhiteSpace(name)
+        ? ""
+        : Spaces.Replace(Counter.Replace(name.Trim(), "$1"), " ").Trim().ToLowerInvariant();
 }
 
 /// <summary>Modo de entrada de voz do Discord.</summary>

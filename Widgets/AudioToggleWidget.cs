@@ -30,6 +30,9 @@ public sealed record AudioToggleOptions
     public AudioSide Side { get; init; } = AudioSide.Both;
     public AudioCombo A { get; init; } = new();
     public AudioCombo B { get; init; } = new();
+
+    /// <summary>Como reconhecer os dispositivos salvos quando o Windows troca o id (como no Audio Device do plugin System).</summary>
+    public DeviceMatching Matching { get; init; } = DeviceMatching.Fuzzy;
 }
 
 /// <summary>Alterna o Discord entre duas combinações de dispositivo (SET_VOICE_SETTINGS input/output device_id).</summary>
@@ -81,8 +84,15 @@ public sealed class AudioToggleInstance(IWidgetContext context) : DiscordOptions
 
     private bool Matches(AudioCombo combo, VoiceSettings? voice) =>
         IsComplete(combo)
-        && (!UsesInput || voice?.Input.DeviceId == combo.InputId)
-        && (!UsesOutput || voice?.Output.DeviceId == combo.OutputId);
+        && (!UsesInput || voice?.Input.DeviceId == InputIdOf(combo, voice))
+        && (!UsesOutput || voice?.Output.DeviceId == OutputIdOf(combo, voice));
+
+    /// <summary>Id atual do microfone da combinação: acha pelo nome se o Windows trocou o id (<see cref="AudioIo.Find"/>).</summary>
+    public string? InputIdOf(AudioCombo combo, VoiceSettings? voice) =>
+        voice?.Input.ResolveId(combo.InputId, combo.InputName, Options.Matching) ?? combo.InputId;
+
+    public string? OutputIdOf(AudioCombo combo, VoiceSettings? voice) =>
+        voice?.Output.ResolveId(combo.OutputId, combo.OutputName, Options.Matching) ?? combo.OutputId;
 
     /// <summary>0 = A, 1 = B, -1 = nenhuma (trocado por fora).</summary>
     public int CurrentIndex(VoiceSettings? voice) =>
@@ -137,12 +147,13 @@ public sealed class AudioToggleInstance(IWidgetContext context) : DiscordOptions
     {
         if (touch.Kind != TouchKind.Tap || !IsComplete(Options.A) || !IsComplete(Options.B))
             return;
-        var target = CurrentIndex(Session.Voice) == 0 ? Options.B : Options.A;
+        var voice = Session.Voice;
+        var target = CurrentIndex(voice) == 0 ? Options.B : Options.A;
         var args = new JsonObject();
         if (UsesInput)
-            args["input"] = new JsonObject { ["device_id"] = target.InputId };
+            args["input"] = new JsonObject { ["device_id"] = InputIdOf(target, voice) };
         if (UsesOutput)
-            args["output"] = new JsonObject { ["device_id"] = target.OutputId };
+            args["output"] = new JsonObject { ["device_id"] = OutputIdOf(target, voice) };
         await ConfirmAsync(() => Session.SetVoiceSettingsAsync(args, cancellationToken)).ConfigureAwait(false);
     }
 }

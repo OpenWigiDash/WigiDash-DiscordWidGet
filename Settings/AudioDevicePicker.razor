@@ -1,0 +1,39 @@
+@* Escolha de um dispositivo da lista do Discord. Se o salvo sumiu (headset desligado, ou o Windows trocou o id e o
+   nome não bate), mostra o nome guardado com "não encontrado" em vez do id cru do Windows. *@
+<MudSelect T="string" Value="SelectedId" ValueChanged="OnSelected" Label="@Label"
+           Variant="Variant.Outlined" Disabled="@Disabled" Style="min-width: 320px"
+           HelperText="@Helper" Error="@Missing">
+    @if (Missing)
+    {
+        <MudSelectItem Value="@SavedId" Disabled="true">@MissingText</MudSelectItem>
+    }
+    @foreach (var device in Io?.Devices ?? [])
+    {
+        <MudSelectItem Value="@device.Id">@device.Name</MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    [Parameter, EditorRequired] public string Label { get; set; } = "";
+    [Parameter] public AudioIo? Io { get; set; }
+    [Parameter] public string? SavedId { get; set; }
+    [Parameter] public string? SavedName { get; set; }
+    [Parameter] public DeviceMatching Matching { get; set; } = DeviceMatching.Fuzzy;
+    [Parameter] public bool Disabled { get; set; }
+    [Parameter] public EventCallback<string> OnSelected { get; set; }
+
+    private AudioDevice? Found => Io?.Find(SavedId, SavedName, Matching);
+
+    /// <summary>Tem um salvo, a lista do Discord chegou, e ele não está nela.</summary>
+    private bool Missing => !string.IsNullOrEmpty(SavedId) && Io is { Devices.Count: > 0 } && Found is null;
+
+    private string? SelectedId => Found?.Id ?? SavedId;
+
+    private string MissingText => $"{(string.IsNullOrWhiteSpace(SavedName) ? "Dispositivo salvo" : SavedName)} (não encontrado)";
+
+    private string? Helper =>
+        Missing ? "O Discord não lista este dispositivo agora. Ligue o dispositivo ou escolha outro."
+        : Found is { } found && !string.Equals(found.Id, SavedId, StringComparison.OrdinalIgnoreCase)
+            ? "Reconhecido pelo nome: o Windows trocou o id deste dispositivo."
+            : null;
+}

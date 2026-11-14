@@ -64,6 +64,9 @@ public sealed record AudioDeviceOptions
 
     /// <summary>Título no lugar do nome do dispositivo; vazio = o nome.</summary>
     public string? Title { get; init; }
+
+    /// <summary>Como reconhecer o dispositivo salvo quando o Windows troca o id (como no Audio Device do plugin System).</summary>
+    public DeviceMatching Matching { get; init; } = DeviceMatching.Fuzzy;
 }
 
 /// <summary>Troca o microfone e/ou a saída do Discord (SET_VOICE_SETTINGS input/output device_id).</summary>
@@ -99,8 +102,8 @@ public sealed class SetAudioDeviceInstance(IWidgetContext context) : DiscordOpti
             return new ButtonVisual(Glyph, Label) { Detail = "Escolha o dispositivo", Dimmed = true };
 
         var voice = Session.Voice;
-        var active = (!WantsInput || voice?.Input.DeviceId == Options.InputId)
-                     && (!WantsOutput || voice?.Output.DeviceId == Options.OutputId);
+        var active = (!WantsInput || voice?.Input.DeviceId == InputId(voice))
+                     && (!WantsOutput || voice?.Output.DeviceId == OutputId(voice));
         var name = Options.Side switch
         {
             AudioSide.Input => Options.InputName,
@@ -119,13 +122,19 @@ public sealed class SetAudioDeviceInstance(IWidgetContext context) : DiscordOpti
     {
         if (touch.Kind != TouchKind.Tap || (!WantsInput && !WantsOutput))
             return;
+        var voice = Session.Voice;
         var args = new JsonObject();
         if (WantsInput)
-            args["input"] = new JsonObject { ["device_id"] = Options.InputId };
+            args["input"] = new JsonObject { ["device_id"] = InputId(voice) };
         if (WantsOutput)
-            args["output"] = new JsonObject { ["device_id"] = Options.OutputId };
+            args["output"] = new JsonObject { ["device_id"] = OutputId(voice) };
         await ConfirmAsync(() => Session.SetVoiceSettingsAsync(args, cancellationToken)).ConfigureAwait(false);
     }
+
+    /// <summary>Id atual do dispositivo escolhido: acha pelo nome se o Windows trocou o id (<see cref="AudioIo.Find"/>).</summary>
+    public string? InputId(VoiceSettings? voice) => voice?.Input.ResolveId(Options.InputId, Options.InputName, Options.Matching) ?? Options.InputId;
+
+    public string? OutputId(VoiceSettings? voice) => voice?.Output.ResolveId(Options.OutputId, Options.OutputName, Options.Matching) ?? Options.OutputId;
 }
 
 public sealed record VolumeOptions

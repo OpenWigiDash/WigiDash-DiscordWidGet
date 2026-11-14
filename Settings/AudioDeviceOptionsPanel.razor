@@ -20,25 +20,16 @@
         <MudSelectItem Value="AudioSide.Output">Só a saída</MudSelectItem>
         <MudSelectItem Value="AudioSide.Both">Entrada e saída</MudSelectItem>
     </MudSelect>
+    <DeviceMatchingSelect Value="Instance.Options.Matching" ValueChanged="v => Save(Instance.Options with { Matching = v })" />
     @if (Instance.Options.Side != AudioSide.Output)
     {
-        <MudSelect T="string" Value="Instance.Options.InputId" ValueChanged="SelectInput" Label="Entrada"
-                   Variant="Variant.Outlined" Disabled="@(Voice is null)" Style="min-width: 320px">
-            @foreach (var device in Voice?.Input.Devices ?? [])
-            {
-                <MudSelectItem Value="@device.Id">@device.Name</MudSelectItem>
-            }
-        </MudSelect>
+        <AudioDevicePicker Label="Entrada" Io="Voice?.Input" SavedId="@Instance.Options.InputId" SavedName="@Instance.Options.InputName"
+                           Matching="Instance.Options.Matching" Disabled="@(Voice is null)" OnSelected="SelectInput" />
     }
     @if (Instance.Options.Side != AudioSide.Input)
     {
-        <MudSelect T="string" Value="Instance.Options.OutputId" ValueChanged="SelectOutput" Label="Saída"
-                   Variant="Variant.Outlined" Disabled="@(Voice is null)" Style="min-width: 320px">
-            @foreach (var device in Voice?.Output.Devices ?? [])
-            {
-                <MudSelectItem Value="@device.Id">@device.Name</MudSelectItem>
-            }
-        </MudSelect>
+        <AudioDevicePicker Label="Saída" Io="Voice?.Output" SavedId="@Instance.Options.OutputId" SavedName="@Instance.Options.OutputName"
+                           Matching="Instance.Options.Matching" Disabled="@(Voice is null)" OnSelected="SelectOutput" />
     }
 </MudStack>
 
