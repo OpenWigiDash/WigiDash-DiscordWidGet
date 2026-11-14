@@ -1,0 +1,12 @@
+@* "Reconhecer o dispositivo": o mesmo seletor do Audio Device do plugin System. *@
+<MudSelect T="DeviceMatching" Value="Value" ValueChanged="ValueChanged" Label="Reconhecer o dispositivo"
+           Variant="Variant.Outlined" Style="max-width: 320px"
+           HelperText="Fuzzy acha o headset sem fio mesmo quando o dongle muda de porta e o Windows troca o id.">
+    <MudSelectItem Value="DeviceMatching.Fuzzy">Fuzzy (pelo nome, se o id mudar)</MudSelectItem>
+    <MudSelectItem Value="DeviceMatching.Exact">Exato (só pelo id)</MudSelectItem>
+</MudSelect>
+
+@code {
+    [Parameter] public DeviceMatching Value { get; set; }
+    [Parameter] public EventCallback<DeviceMatching> ValueChanged { get; set; }
+}

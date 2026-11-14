@@ -273,6 +273,39 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Toggle_de_audio_acha_o_dispositivo_pelo_nome_quando_o_Windows_troca_o_id()
+    {
+        await using var widget = await CreateAsync<AudioToggleInstance>(new AudioToggleWidget());
+        // O headset foi salvo com outro id e com o "2- " do Windows; hoje o Discord lista "Shure" com o id mic2.
+        await widget.SaveOptionsAsync(new AudioToggleOptions
+        {
+            Side = AudioSide.Input,
+            A = new AudioCombo { InputId = "{0.0.1.00000000}.{velho}", InputName = "shure" },
+            B = new AudioCombo { InputId = "default", InputName = "Padrão" },
+        });
+
+        await Tap(widget);
+        Assert.Equal("mic2", _inputDevice);
+        Assert.Equal(0, widget.CurrentVisual().DotIndex);
+
+        // Exato: só pelo id, como antes.
+        await widget.SaveOptionsAsync(widget.Options with { Matching = DeviceMatching.Exact });
+        Assert.Equal(-1, widget.CurrentVisual().DotIndex);
+    }
+
+    [Fact]
+    public async Task Set_Audio_Device_acha_o_dispositivo_pelo_nome_quando_o_Windows_troca_o_id()
+    {
+        await using var widget = await CreateAsync<SetAudioDeviceInstance>(new SetAudioDeviceWidget());
+        await widget.SaveOptionsAsync(new AudioDeviceOptions { Side = AudioSide.Input, InputId = "{velho}", InputName = "Shure" });
+
+        await Tap(widget);
+
+        Assert.Equal("mic2", _inputDevice);
+        Assert.Equal("Em uso", widget.CurrentVisual().Detail);
+    }
+
+    [Fact]
     public async Task Volume_no_2x1_esquerda_abaixa_e_direita_aumenta()
     {
         await using var widget = await CreateAsync<VolumeControlInstance>(new VolumeControlWidget(), WidgetSize.Wide);
@@ -370,5 +403,37 @@ public sealed class ChannelAudioWidgetTests : IAsyncLifetime
         await _discord.DisposeAsync();
         if (Directory.Exists(_dir))
             Directory.Delete(_dir, recursive: true);
+    }
+}
+
+public class AudioDeviceMatchTests
+{
+    private static readonly AudioIo Input = new("x", 100,
+    [
+        new AudioDevice("{0.0.1.00000000}.{33df44f6}", "Microfone do Headset (JBL Quantum 800 Chat)"),
+        new AudioDevice("{0.0.1.00000000}.{f3bacf25}", "Microphone (HD Pro Webcam C920)"),
+    ]);
+
+    [Theory]
+    [InlineData("Microfone do Headset (2- JBL Quantum 800 Chat)", "microfone do headset (jbl quantum 800 chat)")]
+    [InlineData("2- Alto-falantes", "alto-falantes")]
+    [InlineData("  AC10   (NVIDIA High Definition Audio) ", "ac10 (nvidia high definition audio)")]
+    public void Nome_sem_o_contador_do_Windows(string name, string expected) =>
+        Assert.Equal(expected, AudioIo.NormalizeName(name));
+
+    [Fact]
+    public void Headset_salvo_com_2_e_id_antigo_e_achado_pelo_nome()
+    {
+        // O caso real: salvo como "(2- JBL Quantum 800 Chat)" com um id que o Windows não tem mais.
+        var found = Input.Find("{0.0.1.00000000}.{c2b42b9c}", "Microfone do Headset (2- JBL Quantum 800 Chat)");
+        Assert.Equal("{0.0.1.00000000}.{33df44f6}", found?.Id);
+        Assert.Null(Input.Find("{0.0.1.00000000}.{c2b42b9c}", "Microfone do Headset (2- JBL Quantum 800 Chat)", DeviceMatching.Exact));
+    }
+
+    [Fact]
+    public void Dispositivo_desligado_nao_e_achado_e_o_id_salvo_fica()
+    {
+        Assert.Null(Input.Find("{velho}", "Headset (Buds3)"));
+        Assert.Equal("{velho}", Input.ResolveId("{velho}", "Headset (Buds3)"));
     }
 }
