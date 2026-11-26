@@ -23,11 +23,22 @@ A tentativa antiga em net472, que parou no erro 4001 do WebSocket, ficou guardad
 | User Volume Control | Volume ou mute local de alguém da call |
 | Soundboard | Toca um som do soundboard |
 | Notifications | Conta as notificações; abre, limpa ou passa por elas |
-| Server Stats | Membros online e total de um servidor |
+| Server Stats | Membros online e total de um servidor; um toque abre a tela cheia com quem está online |
 | Video Toggle | Liga e desliga a câmera |
 | Stream Toggle | Liga e desliga a transmissão de tela |
 
 Os botões de um toque (mute, entrar num canal, trocar dispositivo) aceitam do Mini ao Wide; Voice Channel e Notifications também têm o Large, com a grade de avatares com nome e a lista das últimas notificações. Todos usam uma conexão só com o Discord.
+
+## Quem está online (Server Stats em tela cheia)
+
+Tocar no Server Stats abre a tela inteira com quem está online no servidor: avatar, bolinha de status (online,
+ausente, não perturbe), nome e o canal de voz ou o jogo de cada um. Quem está em call vem primeiro. Com mais gente
+do que cabe, deslize para o lado para trocar de página; um toque (ou deslizar para baixo) fecha.
+
+A lista vem do widget público do servidor (`guilds/{id}/widget.json`), porque nem o RPC nem o login OAuth dão a
+lista de membros. Um admin do servidor precisa ligar em **Configurações do servidor > Widget > Ativar widget do
+servidor**; desligado, a tela avisa. Limites do Discord: até uns 100 online na lista, sem os invisíveis e com o
+nome de exibição (não o apelido do servidor).
 
 ## Como fala com o Discord
 

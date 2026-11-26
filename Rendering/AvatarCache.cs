@@ -9,7 +9,7 @@ namespace WigiDash.DiscordWidget.Rendering;
 /// </summary>
 public static class AvatarCache
 {
-    private const int MaxEntries = 200;
+    private const int MaxEntries = 400;
     private static readonly HttpClient Http = new() { Timeout = TimeSpan.FromSeconds(10) };
     private static readonly ConcurrentDictionary<string, Bitmap?> Images = new();
 

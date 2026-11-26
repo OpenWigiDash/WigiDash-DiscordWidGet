@@ -114,7 +114,18 @@ public abstract class DiscordButtonInstance : IWidgetInstance
     protected abstract Task OnReadyTouchAsync(TouchEvent touch, CancellationToken cancellationToken);
 
     public ValueTask<WidgetFrame> RenderAsync(RenderReason reason, CancellationToken cancellationToken) =>
-        ValueTask.FromResult(ButtonRenderer.Render(Context.PixelSize, Context.Theme, CurrentVisual()));
+        ValueTask.FromResult(Context.IsFullscreen && Session.State == DiscordState.Ready && RenderFullscreen() is { } frame
+            ? frame
+            : ButtonRenderer.Render(Context.PixelSize, Context.Theme, CurrentVisual()));
+
+    /// <summary>
+    /// Desenho próprio da tela cheia (manifesto com <see cref="WidgetManifest.SupportsFullscreen"/>), com a sessão
+    /// pronta; <c>null</c> desenha o botão de sempre no tamanho da tela.
+    /// </summary>
+    protected virtual WidgetFrame? RenderFullscreen() => null;
+
+    /// <summary>Entrou ou saiu da tela cheia; o host pede um quadro em seguida.</summary>
+    public virtual ValueTask OnFullscreenChangedAsync(bool fullscreen, CancellationToken cancellationToken) => ValueTask.CompletedTask;
 
     public ButtonVisual CurrentVisual()
     {
@@ -203,6 +214,13 @@ public abstract class DiscordButtonInstance : IWidgetInstance
 
     public async ValueTask OnTouchAsync(TouchEvent touch, CancellationToken cancellationToken)
     {
+        // Em tela cheia sem a sessão pronta (Discord fechou), o toque só sai da tela cheia: senão ela prenderia a tela.
+        if (Context.IsFullscreen && Session.State != DiscordState.Ready)
+        {
+            if (touch.Kind is TouchKind.Tap or TouchKind.SwipeDown)
+                await Context.RequestFullscreenAsync(false, cancellationToken).ConfigureAwait(false);
+            return;
+        }
         if (Session.State == DiscordState.NeedsAuthorization)
         {
             if (touch.Kind == TouchKind.Tap)

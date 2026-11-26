@@ -443,6 +443,68 @@ public sealed class DiscordSession
         return json.RootElement.Clone();
     }
 
+    private static readonly TimeSpan GuildWidgetTtl = TimeSpan.FromSeconds(30);
+    private readonly Lock _guildWidgetLock = new();
+    private readonly Dictionary<string, (Task<GuildWidget> Fetch, DateTimeOffset ValidUntil)> _guildWidgets = [];
+
+    /// <summary>
+    /// Quem está online no servidor, pelo widget público (<c>guilds/{id}/widget.json</c>, sem token). Relido no
+    /// máximo a cada 30 s por servidor. <see cref="GuildWidgetDisabledException"/> quando o widget está desligado.
+    /// </summary>
+    public async Task<GuildWidget> GetGuildWidgetAsync(string guildId, CancellationToken cancellationToken = default)
+    {
+        Task<GuildWidget> fetch;
+        lock (_guildWidgetLock)
+        {
+            var now = _time.GetUtcNow();
+            if (!_guildWidgets.TryGetValue(guildId, out var cached) || now >= cached.ValidUntil)
+            {
+                cached = (FetchGuildWidgetAsync(guildId), now + GuildWidgetTtl);
+                _guildWidgets[guildId] = cached;
+            }
+            fetch = cached.Fetch;
+        }
+        try
+        {
+            return await fetch.WaitAsync(cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception) when (!cancellationToken.IsCancellationRequested)
+        {
+            lock (_guildWidgetLock)
+            {
+                // Falhou: o próximo pedido tenta de novo (o widget pode ter sido ligado agora).
+                if (_guildWidgets.TryGetValue(guildId, out var cached) && cached.Fetch == fetch)
+                    _guildWidgets.Remove(guildId);
+            }
+            throw;
+        }
+    }
+
+    private async Task<GuildWidget> FetchGuildWidgetAsync(string guildId)
+    {
+        using var response = await Http.GetAsync($"{ApiBase}/guilds/{Uri.EscapeDataString(guildId)}/widget.json").ConfigureAwait(false);
+        var body = await response.Content.ReadAsStringAsync().ConfigureAwait(false);
+        JsonDocument json;
+        try
+        {
+            json = JsonDocument.Parse(body);
+        }
+        catch (JsonException ex)
+        {
+            throw new HttpRequestException($"Widget do servidor: HTTP {(int)response.StatusCode}", ex, response.StatusCode);
+        }
+        using (json)
+        {
+            var root = json.RootElement;
+            if (response.IsSuccessStatusCode)
+                return GuildWidget.Parse(root);
+            if (root.ValueKind == JsonValueKind.Object && root.TryGetProperty("code", out var code)
+                && code.ValueKind == JsonValueKind.Number && code.GetInt32() == 50004)
+                throw new GuildWidgetDisabledException();
+            throw new HttpRequestException($"Widget do servidor: HTTP {(int)response.StatusCode}", null, response.StatusCode);
+        }
+    }
+
     /// <summary>Base da API REST; os testes apontam para um servidor local.</summary>
     internal string ApiBase { get; set; } = "https://discord.com/api/v10";
 

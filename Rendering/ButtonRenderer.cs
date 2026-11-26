@@ -115,6 +115,9 @@ public static class ButtonRenderer
 
     private static readonly string IconFont = PickIconFont();
 
+    /// <summary>Fonte dos ícones do sistema (Segoe Fluent Icons ou Segoe MDL2 Assets).</summary>
+    internal static string IconFontName => IconFont;
+
     public static WidgetFrame Render(PixelSize size, WidgetTheme theme, ButtonVisual visual)
     {
         using var bitmap = new Bitmap(size.Width, size.Height, PixelFormat.Format32bppArgb);
@@ -406,7 +409,7 @@ public static class ButtonRenderer
     /// Imagem recortada em círculo com borda suave: reduz a imagem para o tamanho final em alta qualidade e pinta
     /// um círculo com ela (o recorte com SetClip do GDI+ não tem antialias e deixava a borda serrilhada).
     /// </summary>
-    private static void DrawRoundImage(Graphics g, Image image, RectangleF rect)
+    internal static void DrawRoundImage(Graphics g, Image image, RectangleF rect)
     {
         var side = Math.Max(1, (int)Math.Ceiling(Math.Max(rect.Width, rect.Height)));
         using var scaled = new Bitmap(side, side, PixelFormat.Format32bppArgb);
@@ -427,7 +430,7 @@ public static class ButtonRenderer
         g.SmoothingMode = mode;
     }
 
-    private static void DrawAvatar(Graphics g, RectangleF rect, AvatarFace face)
+    internal static void DrawAvatar(Graphics g, RectangleF rect, AvatarFace face)
     {
         var image = AvatarCache.Get(face.Url);
         if (image is not null)
@@ -524,7 +527,7 @@ public static class ButtonRenderer
     /// Símbolo grande no canto inferior direito, saindo do tile (variante B escolhida pelo Victor), na cor
     /// <paramref name="color"/>.
     /// </summary>
-    private static void DrawLogo(Graphics g, PixelSize size, Color color)
+    internal static void DrawLogo(Graphics g, PixelSize size, Color color)
     {
         var side = size.Height * 1.25f;
         var rect = new RectangleF(size.Width - side * 0.64f, size.Height - side * 0.7f, side, side);
@@ -609,7 +612,7 @@ public static class ButtonRenderer
         g.DrawString(text, font, brush, new RectangleF(rect.X + height * 0.8f, rect.Y, textWidth + height * 0.2f, height), Centered);
     }
 
-    private static readonly StringFormat Centered = new()
+    internal static readonly StringFormat Centered = new()
     {
         Alignment = StringAlignment.Center,
         LineAlignment = StringAlignment.Center,
@@ -633,7 +636,7 @@ public static class ButtonRenderer
         }
     }
 
-    private static GraphicsPath RoundedRect(Rectangle r, int radius)
+    internal static GraphicsPath RoundedRect(Rectangle r, int radius)
     {
         var path = new GraphicsPath();
         var d = Math.Clamp(radius * 2, 0, Math.Min(r.Width, r.Height));
@@ -653,9 +656,9 @@ public static class ButtonRenderer
     /// <summary>A cor um pouco mais clara (pulso de atenção).</summary>
     public static Color Lighter(Color color) => Blend(color, Color.White, 0.3);
 
-    private static Color ToColor(WidgetColor c) => Color.FromArgb(c.R, c.G, c.B);
+    internal static Color ToColor(WidgetColor c) => Color.FromArgb(c.R, c.G, c.B);
 
-    private static Color Blend(Color a, Color b, double t) => Color.FromArgb(
+    internal static Color Blend(Color a, Color b, double t) => Color.FromArgb(
         (int)(a.R + (b.R - a.R) * t), (int)(a.G + (b.G - a.G) * t), (int)(a.B + (b.B - a.B) * t));
 
     /// <summary>Quanto do tamanho da fonte o desenho do glifo ocupa (a caixa da fonte tem sobra em volta).</summary>
@@ -665,7 +668,7 @@ public static class ButtonRenderer
     /// Desenha o glifo pelo contorno real, centrado em <paramref name="center"/> e com o maior lado igual a
     /// <paramref name="side"/> (como o SDK recomenda: a caixa da fonte não é centrada no desenho).
     /// </summary>
-    private static void DrawGlyph(Graphics g, string glyph, PointF center, float side, Brush brush)
+    internal static void DrawGlyph(Graphics g, string glyph, PointF center, float side, Brush brush)
     {
         using var family = new FontFamily(IconFont);
         using var path = new GraphicsPath();
