@@ -193,13 +193,18 @@ public sealed record ServerStatsOptions
     public string? GuildName { get; init; }
 }
 
-/// <summary>Membros online e total de um servidor, relidos a cada minuto.</summary>
+/// <summary>
+/// Membros online e total de um servidor, relidos a cada minuto. Um toque abre a tela cheia com quem está online
+/// (widget público do servidor).
+/// </summary>
 public sealed class ServerStatsWidget : DiscordWidgetBase
 {
     public override WidgetManifest Manifest { get; } = CreateManifest(
         new Guid("b6dead57-63be-4e7c-8cd5-0782b6264573"),
         "Discord: Server Stats",
-        "Mostra quantos membros de um servidor estão online e o total, atualizado a cada minuto.");
+        "Mostra quantos membros de um servidor estão online e o total, atualizado a cada minuto. Toque para ver " +
+        "quem está online em tela cheia (precisa do Widget ligado nas configurações do servidor).")
+        with { SupportsFullscreen = true };
 
     protected override ButtonVisual Preview => new(Glyphs.Server, "Server Stats") { GlyphAccent = Glyphs.Info };
 
@@ -210,9 +215,21 @@ public sealed class ServerStatsInstance : DiscordOptionsInstance<ServerStatsOpti
 {
     private static readonly TimeSpan Interval = TimeSpan.FromMinutes(1);
     private static readonly TimeSpan RetryInterval = TimeSpan.FromSeconds(5);
+
+    /// <summary>Em tela cheia, a lista é relida a cada 30 s (o mesmo tempo do cache da sessão).</summary>
+    private static readonly TimeSpan MembersInterval = TimeSpan.FromSeconds(30);
+
+    internal const string WidgetDisabledHint =
+        "Um admin do servidor liga em Configurações do servidor > Widget > Ativar widget do servidor.";
+
     private readonly CancellationTokenSource _stop = new();
     private GuildCounts? _counts;
     private bool _asleep;
+    private CancellationTokenSource? _members;
+    private GuildWidget? _widget;
+    private string? _membersMessage;
+    private string? _membersHint;
+    private int _page;
 
     public ServerStatsInstance(IWidgetContext context) : base(context)
     {
@@ -224,6 +241,11 @@ public sealed class ServerStatsInstance : DiscordOptionsInstance<ServerStatsOpti
     protected override string Label => "Server Stats";
 
     public override Type? OptionsComponent => typeof(ServerStatsOptionsPanel);
+
+    /// <summary>A lista da tela cheia, quando já chegou.</summary>
+    internal GuildWidget? Members => _widget;
+
+    internal int Page => _page;
 
     protected override ButtonVisual GetVisual()
     {
@@ -244,17 +266,124 @@ public sealed class ServerStatsInstance : DiscordOptionsInstance<ServerStatsOpti
         };
     }
 
+    protected override WidgetFrame? RenderFullscreen()
+    {
+        if (Options.GuildId is null)
+            return null;
+        var name = _widget?.Name is { Length: > 0 } widgetName ? widgetName : _counts?.Name ?? Options.GuildName ?? Label;
+        return MemberListRenderer.Render(Context.PixelSize, Context.Theme, new MemberListVisual(name, GuildIconUrl(Options.GuildId))
+        {
+            Widget = _widget,
+            Message = _membersMessage,
+            Hint = _membersHint,
+            Page = _page,
+        });
+    }
+
     protected override async Task OnReadyTouchAsync(TouchEvent touch, CancellationToken cancellationToken)
     {
-        if (touch.Kind != TouchKind.Tap || Options.GuildId is not { } guildId)
+        if (Options.GuildId is not { } guildId)
+            return;
+        if (Context.IsFullscreen)
+        {
+            switch (touch.Kind)
+            {
+                case TouchKind.Tap or TouchKind.SwipeDown:
+                    await Context.RequestFullscreenAsync(false, cancellationToken).ConfigureAwait(false);
+                    break;
+                case TouchKind.SwipeLeft:
+                    Turn(+1);
+                    break;
+                case TouchKind.SwipeRight:
+                    Turn(-1);
+                    break;
+            }
+            return;
+        }
+        if (touch.Kind is not (TouchKind.Tap or TouchKind.SwipeUp))
+            return;
+        if (await Context.RequestFullscreenAsync(true, cancellationToken).ConfigureAwait(false))
+            return;
+        // O host não deu a tela cheia (outro widget já está nela): fica o toque de antes, que relê os números.
+        if (touch.Kind != TouchKind.Tap)
             return;
         _counts = await Session.GetGuildCountsAsync(guildId, cancellationToken).ConfigureAwait(false);
         ShowFeedback(true);
     }
 
+    private void Turn(int delta)
+    {
+        var pages = _widget is { } widget ? MemberListRenderer.PageCount(Context.PixelSize, widget.Members.Count) : 1;
+        var page = Math.Clamp(_page + delta, 0, pages - 1);
+        if (page == _page)
+            return;
+        _page = page;
+        Refresh();
+    }
+
+    public override ValueTask OnFullscreenChangedAsync(bool fullscreen, CancellationToken cancellationToken)
+    {
+        _page = 0;
+        var previous = Interlocked.Exchange(ref _members, null);
+        previous?.Cancel();
+        previous?.Dispose();
+        if (fullscreen)
+        {
+            var members = CancellationTokenSource.CreateLinkedTokenSource(_stop.Token);
+            _members = members;
+            _ = Task.Run(() => PollMembersAsync(members.Token));
+        }
+        return ValueTask.CompletedTask;
+    }
+
+    /// <summary>Enquanto a tela cheia está aberta, relê quem está online.</summary>
+    private async Task PollMembersAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            while (!cancellationToken.IsCancellationRequested)
+            {
+                await RefreshMembersAsync(cancellationToken).ConfigureAwait(false);
+                await Task.Delay(_widget is null && _membersHint is null ? RetryInterval : MembersInterval, Context.Host.Time,
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+        catch (OperationCanceledException)
+        {
+        }
+    }
+
+    internal async Task RefreshMembersAsync(CancellationToken cancellationToken)
+    {
+        if (Options.GuildId is not { } guildId)
+            return;
+        try
+        {
+            var widget = await Session.GetGuildWidgetAsync(guildId, cancellationToken).ConfigureAwait(false);
+            _widget = widget;
+            _membersMessage = _membersHint = null;
+            _page = Math.Min(_page, MemberListRenderer.PageCount(Context.PixelSize, widget.Members.Count) - 1);
+        }
+        catch (GuildWidgetDisabledException)
+        {
+            _widget = null;
+            _membersMessage = "Widget do servidor desligado";
+            _membersHint = WidgetDisabledHint;
+        }
+        catch (Exception ex) when (ex is HttpRequestException or TaskCanceledException && !cancellationToken.IsCancellationRequested)
+        {
+            Context.Logger.LogDebug(ex, "Discord: não deu para ler quem está online no servidor");
+            // Mantém a última lista; sem lista, avisa.
+            if (_widget is null)
+                _membersMessage = "Não deu para ler a lista";
+        }
+        Refresh();
+    }
+
     public override async Task SaveOptionsAsync(ServerStatsOptions options)
     {
         _counts = null;
+        _widget = null;
         await base.SaveOptionsAsync(options).ConfigureAwait(false);
         await RefreshCountsAsync(CancellationToken.None).ConfigureAwait(false);
     }
@@ -306,6 +435,7 @@ public sealed class ServerStatsInstance : DiscordOptionsInstance<ServerStatsOpti
     protected override void OnDisposing()
     {
         _stop.Cancel();
+        _members?.Dispose();
         _stop.Dispose();
     }
 }

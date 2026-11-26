@@ -14,9 +14,15 @@ internal sealed class FakeContext(WidgetSize size) : IWidgetContext
     public IWidgetHost Host { get; } = new FakeHost();
     public WidgetSize Size { get; } = size;
     /// <summary>Área de conteúdo com a moldura padrão da página (no SDK 3.0, sem respiro nem borda).</summary>
-    public PixelSize PixelSize => Frame.ContentSize(Size.CellSpan);
+    public PixelSize PixelSize => IsFullscreen ? WidgetGrid.Screen : Frame.ContentSize(Size.CellSpan);
     public TileFrame Frame { get; } = TileFrame.Default;
-    public bool IsFullscreen => false;
+    public bool IsFullscreen { get; private set; }
+
+    /// <summary>O host aceita a tela cheia (como o de verdade faz para manifesto com SupportsFullscreen).</summary>
+    public bool AllowFullscreen { get; set; }
+
+    /// <summary>A instância a avisar da troca, como o host faz com OnFullscreenChangedAsync.</summary>
+    public IWidgetInstance? Instance { get; set; }
     public bool IsAsleep => false;
     public WidgetTheme Theme { get; } = new();
     public IWidgetSettings Settings { get; } = new MemorySettings();
@@ -29,7 +35,18 @@ internal sealed class FakeContext(WidgetSize size) : IWidgetContext
 
     public ValueTask PresentAsync(WidgetFrame frame, CancellationToken cancellationToken = default) => ValueTask.CompletedTask;
     public void RequestRender() => Interlocked.Increment(ref _renders);
-    public ValueTask<bool> RequestFullscreenAsync(bool fullscreen, CancellationToken cancellationToken = default) => ValueTask.FromResult(false);
+    public async ValueTask<bool> RequestFullscreenAsync(bool fullscreen, CancellationToken cancellationToken = default)
+    {
+        if (!AllowFullscreen)
+            return false;
+        if (IsFullscreen != fullscreen)
+        {
+            IsFullscreen = fullscreen;
+            if (Instance is not null)
+                await Instance.OnFullscreenChangedAsync(fullscreen, cancellationToken);
+        }
+        return true;
+    }
 
     private sealed class FakeHost : IWidgetHost
     {
